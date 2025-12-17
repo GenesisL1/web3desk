@@ -1,0 +1,2000 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GenesisL1 Explorer — Stateless (EVM + Cosmos)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root{
+    --ink:#0f172a; --muted:#64748b; --ring:#e5e7eb; --card:#ffffff; --bg:#ffffff;
+    --info:#2563eb; --soft:#f8fafc;
+  }
+  html, body{
+  min-height:100%;
+  height:auto;
+}
+  body{
+
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+  }
+  .mono{
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+  }
+  .card{
+    border-radius: 14px;
+    background:var(--card);
+    border:1px solid var(--ring);
+
+  }
+  .kpi-label{font-size:.78rem; color:#6b7280}
+  .kpi-value{font-size:1.06rem; font-weight:500; letter-spacing:.1px}
+  .kpi-sub{font-size:.74rem; color:#94a3b8}
+  .link{color:#4285F4; text-decoration:none}
+  .link:hover{text-decoration:underline}
+  .row{padding:12px 0; border-top:1px solid var(--ring)}
+  .row:first-child{border-top:0}
+  .btn{
+    border:1px solid var(--ring);
+    border-radius:12px;
+    padding:.55rem .9rem;
+    background:linear-gradient(180deg,#fff,#f9fafb);
+  }
+  .btn:hover{box-shadow:0 1px 4px rgba(0,0,0,.06)}
+  .heading{border-bottom:1px solid var(--ring); background:#fff}
+  .grid-auto{display:grid;grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));gap:16px}
+  .grid-wide{display:grid;grid-template-columns: 1fr 1fr; gap:16px}
+  @media (max-width: 1100px){ .grid-wide{grid-template-columns:1fr} }
+  #valTitle{font-size:14px;}
+  .stats-row{display:grid; grid-template-columns: repeat(4, minmax(260px, 1fr)); gap:16px}
+  @media (max-width: 1400px){ .stats-row{grid-template-columns: repeat(2, minmax(260px,1fr)); } }
+  @media (max-width: 760px){  .stats-row{grid-template-columns: 1fr; } }
+
+  .tiny{font-size:11px}
+  table{width:100%; border-collapse:collapse}
+  th, td{padding:8px 10px; border-bottom:1px solid #e5e7eb; font-size:.9rem}
+  th{color:#64748b; font-weight:500; text-align:left; white-space:nowrap}
+  td a{white-space:nowrap}
+
+  .status-dot{width:10px;height:10px;border-radius:9999px;display:inline-block;margin-right:8px;background:#e5e7eb}
+  .subpage header{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--ring);margin-bottom:12px}
+
+  .block-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-top:1px solid #e5e7eb}
+  .block-row:first-child{border-top:0}
+  .blk-left{display:flex;align-items:center;gap:12px;min-width:0}
+  .blk-icon{width:36px;height:36px;border-radius:12px;border:1px solid #e5e7eb;display:flex;align-items:center;justify-content:center;background:#fff}
+  .blk-title{font-weight:600}
+  .blk-meta{font-size:.78rem;color:#6b7280}
+
+  .pill{font-size:.72rem;border:1px solid var(--ring);border-radius:9999px;padding:.25rem .55rem;background:#f8fafc}
+
+  /* ===== Responsive long hashes/addresses ===== */
+  .hash-el{ display:inline-flex; align-items:baseline; max-width:100%; gap:.25rem; }
+  .hash-short{ display:inline; }
+  .hash-full{ display:none; }
+  @media (min-width:768px){
+    .hash-short{ display:none; }
+    .hash-full{ display:inline; }
+  }
+  .clamp-xs{ font-size:clamp(11px,2.7vw,14px); }
+  .break-any{ overflow-wrap:anywhere; word-break:break-all; }
+  .chip{ font-size:.78rem; padding:.25rem .6rem; border-radius:9999px; background:var(--soft); border:1px solid var(--ring); }
+  .chip:hover{ background:#fff; }
+  .flow{ display:flex; flex-direction:column; gap:.5rem; }
+  .flow-row{ display:flex; align-items:center; justify-content:space-between; gap:.75rem; padding:.45rem .6rem; border:1px solid var(--ring); border-radius:10px; background:#fff; }
+  .flow-addr{ min-width:0; }
+  .flow-amt{ white-space:nowrap; font-weight:600; }
+  .token{ font-weight:600; }
+  .table-tight th, .table-tight td{ padding:6px 8px; }
+  .logo img { width: 32px; }
+</style>
+</head>
+<body>
+
+<!-- ====== HOME ====== -->
+<main id="page-home" class="w-full px-4 md:px-6 lg:px-8 py-6 space-y-6">
+
+  <!-- Search + endpoint status (moved down from header) -->
+  <section class="card p-4">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <div class="kpi-label uppercase tracking-wide">Explorer search</div>
+        <div class="kpi-sub">Search by block height, tx hash (EVM or Cosmos), or address.</div>
+      </div>
+      <div class="flex flex-wrap items-center gap-2 text-xs">
+        <span class="pill" id="rpcBadge">EVM RPC: …</span>
+        <span class="pill" id="lcdBadge">LCD: …</span>
+        <span class="pill" id="tmBadge">Tendermint: …</span>
+      </div>
+    </div>
+    <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+      <input
+        id="topSearch"
+        class="w-full sm:w-96 rounded-xl border px-3 py-2 shadow-sm mono text-sm"
+        placeholder="Search by block, tx, address…"
+      />
+      <button id="topSearchBtn" class="btn text-sm sm:w-auto">Search</button>
+    </div>
+  </section>
+
+  <!-- ===== Stats row: four cards (hidden; kept for JS compatibility) ===== -->
+  <section class="stats-row" hidden>
+    <!-- Card 1: latest block / inflation / active validators -->
+    <div class="card p-4">
+      <div class="kpi-label">Latest Block</div>
+      <div class="kpi-value" id="d_latest_block">—</div>
+      <div class="kpi-sub" id="d_last_time">—</div>
+      <div class="kpi-sub" id="d_avg_time">—</div>
+
+      <div class="mt-4">
+        <div class="kpi-label">Inflation</div>
+        <div class="kpi-value" id="s_inflation">—</div>
+      </div>
+
+      <div class="mt-3">
+        <div class="kpi-label">Active Validators</div>
+        <div class="kpi-value" id="d_active_validators">—</div>
+        <div class="kpi-sub">Active set</div>
+      </div>
+    </div>
+
+    <!-- Card 2: supply + community pool + osmosis -->
+    <div class="card p-4">
+      <div class="kpi-label">Supply</div>
+      <div class="kpi-value" id="s_supply">—</div>
+      <div class="kpi-sub">100%</div>
+
+      <div class="kpi-label mt-3">Community pool</div>
+      <div class="kpi-value" id="s_comm">—</div>
+      <div class="kpi-sub" id="s_comm_pct">—% of supply</div>
+
+      <div class="kpi-label mt-3">On Osmosis</div>
+      <div class="kpi-value" id="s_osmo">—</div>
+      <div class="kpi-sub" id="s_osmo_pct">—% of supply</div>
+    </div>
+
+    <!-- Card 3: staking + rewards -->
+    <div class="card p-4">
+      <div class="kpi-label">Total staked</div>
+      <div class="kpi-value" id="s_staked_total">—</div>
+      <div class="kpi-sub" id="s_staked_total_pct">—% of supply</div>
+
+      <div class="grid grid-cols-2 gap-3 pt-2">
+        <div>
+          <div class="kpi-label">Staked — Active</div>
+          <div class="kpi-value" id="s_staked_active">—</div>
+          <div class="kpi-sub" id="s_staked_active_pct">—% of supply</div>
+        </div>
+        <div>
+          <div class="kpi-label">Staked — Jailed</div>
+          <div class="kpi-value" id="s_staked_jailed">—</div>
+          <div class="kpi-sub" id="s_staked_jailed_pct">—% of supply</div>
+        </div>
+      </div>
+
+      <div class="kpi-label mt-3">Unclaimed rewards</div>
+      <div class="kpi-value" id="s_rewards">—</div>
+      <div class="kpi-sub" id="s_rewards_pct">—% of supply</div>
+    </div>
+
+    <!-- Card 4: unstaking time + unbonding -->
+    <div class="card p-4">
+      <div class="kpi-label">Unstaking time</div>
+      <div class="kpi-value" id="s_unstaking">—</div>
+      <div class="kpi-sub">From staking params</div>
+
+      <div class="kpi-label mt-3">Unbonding (chain-wide)</div>
+      <div class="kpi-value" id="s_unbonding">—</div>
+    </div>
+  </section>
+
+  <!-- Latest lists -->
+  <section class="grid-wide">
+    <!-- Blocks -->
+    <div class="card p-4">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="font-semibold">Latest 10 Blocks</h2>
+        <div class="text-xs text-gray-500">Auto-refresh • UTC</div>
+      </div>
+      <div id="blocks"></div>
+    </div>
+
+    <!-- Transactions -->
+    <div class="card p-4">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="font-semibold">Latest 10 Transactions</h2>
+        <div class="text-xs text-gray-500">EVM + Cosmos • scans up to 240 blocks/heights • UTC</div>
+      </div>
+      <div id="unifiedTxs"></div>
+    </div>
+  </section>
+
+  <!-- Diagnostics -->
+  <section class="card p-4">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="font-semibold">Diagnostics</h2>
+      <div class="text-xs text-gray-500">First error per endpoint shown to avoid spam.</div>
+    </div>
+    <div id="diag" class="text-xs text-gray-600 space-y-1"></div>
+  </section>
+</main>
+
+<!-- ====== BLOCK PAGE ====== -->
+<main id="page-block" class="w-full px-4 md:px-6 lg:px-8 py-6 space-y-4 subpage" hidden>
+  <header>
+    <a href="#/" class="back">&larr; Back</a>
+    <div class="text-lg font-semibold" id="blkTitle">Block</div>
+  </header>
+  <section class="grid-auto">
+    <div class="card p-4" id="blkHeader">Loading…</div>
+    <div class="card p-4" id="blkCosmos">Loading…</div>
+  </section>
+  <section class="card p-4">
+    <h3 class="font-semibold mb-2">Signers</h3>
+    <div id="blkSigners" class="flex flex-wrap gap-1"></div>
+  </section>
+  <section class="card p-4">
+    <h3 class="font-semibold mb-2">Transactions (first 50)</h3>
+    <ul id="blkTxList" class="space-y-1"></ul>
+  </section>
+</main>
+
+<!-- ====== VALIDATOR PAGE ====== -->
+<main id="page-validator" class="w-full px-4 md:px-6 lg:px-8 py-6 space-y-4 subpage" hidden>
+  <header>
+    <a href="#/" class="back">&larr; Back</a>
+    <div class="text-lg font-semibold" id="valTitle">Validator</div>
+  </header>
+  <section class="grid-auto">
+    <div class="card p-4" id="valMeta">Loading…</div>
+    <div class="card p-4" id="valFinance">Loading…</div>
+  </section>
+  <section class="card p-4">
+    <h3 class="font-semibold mb-2">Delegators</h3>
+    <div class="overflow-x-auto">
+      <table id="valDelegatorsTbl">
+        <thead>
+          <tr>
+            <th>Bech32</th>
+            <th>EVM (0x…)</th>
+          </tr>
+        </thead>
+        <tbody id="valDelegatorsBody">
+          <tr><td colspan="2" class="text-gray-500">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<!-- ====== TX PAGE ====== -->
+<main id="page-tx" class="w-full px-4 md:px-6 lg:px-8 py-6 space-y-4 subpage" hidden>
+  <header>
+    <a href="#/" class="back">&larr; Back</a>
+    <div class="text-lg font-semibold" id="txTitle">Transaction</div>
+  </header>
+  <section class="card p-4" id="txBody">Loading…</section>
+</main>
+
+<!-- ====== TOKEN PAGE ====== -->
+<main id="page-token" class="w-full px-4 md:px-6 lg:px-8 py-6 space-y-4 subpage" hidden>
+  <header>
+    <a href="#/" class="back">&larr; Back</a>
+    <div class="text-lg font-semibold" id="tokenTitle">Token</div>
+  </header>
+
+  <section class="grid-auto">
+    <div class="card p-4" id="tokenMeta">Loading…</div>
+    <div class="card p-4" id="tokenNumbers">Loading…</div>
+  </section>
+
+  <section class="card p-4">
+    <h3 class="font-semibold mb-2">Top holders (observed)</h3>
+    <div class="text-xs text-gray-500 mb-2">
+      Holders are discovered via recent <span class="mono">Transfer</span> logs within the scan window (≤ 240 blocks), then balances are fetched live via <span class="mono">balanceOf</span>. This is a stateless snapshot of discovered holders, not the full historical index.
+    </div>
+    <div class="overflow-x-auto">
+      <table class="table-tight w-full">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Address</th>
+            <th class="text-right">Balance</th>
+          </tr>
+        </thead>
+        <tbody id="tokenHoldersBody">
+          <tr><td colspan="3" class="text-gray-500">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<!-- ====== ADDRESS PAGE ====== -->
+<main id="page-address" class="w-full px-4 md:px-6 lg:px-8 py-6 space-y-4 subpage" hidden>
+  <header>
+    <a href="#/" class="back">&larr; Back</a>
+    <div class="text-lg font-semibold" id="addrTitle">Address</div>
+  </header>
+  <section class="grid-auto">
+    <div class="card p-4" id="addrIdentity">Loading…</div>
+    <div class="card p-4" id="addrTriple">
+      <div class="grid-auto">
+        <div class="card p-3">
+          <div class="kpi-label">Balance</div>
+          <div class="kpi-value" id="addrBal">—</div>
+          <div class="kpi-sub">Wallet balance</div>
+        </div>
+        <div class="card p-3">
+          <div class="kpi-label">Staked</div>
+          <div class="kpi-value" id="addrStaked">—</div>
+          <div class="kpi-sub">Total delegations</div>
+        </div>
+        <div class="card p-3">
+          <div class="kpi-label">Rewards</div>
+          <div class="kpi-value" id="addrRewards">—</div>
+          <div class="kpi-sub">Unclaimed rewards</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Delegations of this address -->
+  <section class="card p-4">
+    <h3 class="font-semibold mb-2">Delegations</h3>
+    <div class="overflow-x-auto">
+      <table>
+        <thead>
+          <tr>
+            <th>Validator</th>
+            <th>Staked</th>
+            <th>Rewards</th>
+          </tr>
+        </thead>
+        <tbody id="addrDelegationsBody">
+          <tr><td colspan="3" class="text-gray-500">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<script>
+(function(){
+  'use strict';
+
+  /* ===== CONFIG ===== */
+  const EVM_RPC        = 'https://rpc.genesisl1.org';
+  const COSMOS_LCD     = 'https://1317.genesisl1.org';
+  const TENDERMINT_RPC = 'https://26657.genesisl1.org';
+  const OSMOSIS_LCD    = 'https://rest.cosmos.directory/osmosis';
+
+  const EVM_DECIMALS   = 18;
+  let   COSMOS_DECIMALS= 18;      // autodetected
+  let   BASE_DENOM     = 'ul1';   // autodetected
+  const DISPLAY_DENOM  = 'L1';
+  const BECH32_PREFIX  = 'genesis';
+  const VALOPER_PREFIX = 'genesisvaloper';
+
+  /* ===== LOAD CONTROL ===== */
+  const REFRESH_BLOCKS_MS  = 30000;
+  const REFRESH_TXS_MS     = 45000;
+  const REFRESH_STATS_MS   = 60000;
+
+  // Deep scan caps — reduced to 2,880 as requested
+  const EVM_SCAN_CAP        = 240;
+  const COSMOS_SCAN_HEIGHTS = 240;
+
+  const HTTP_TIMEOUT_MS   = 12000;
+  const RETRIES_PRIMARY   = 1;
+  const BACKOFF_START_MS  = 800;
+
+  let ENABLE_OSMOSIS_SCAN = true;
+
+  /* ===== STATE ===== */
+  const STATE = {
+    lastHead: 0,
+    seenBlocks: new Set(),
+    pkInfo: new Map(),     // consensus pubkey -> {validator, oper}
+    valMeta: new Map(),    // valoper -> {moniker, jailed, status}
+    logged: new Set(),     // diag dedupe
+
+    // TX list stability controls
+    txCache: [],
+    txCacheUpdated: 0,
+    txRunId: 0,
+    txInFlight: false,
+
+    // ERC-20 cache and token page caches
+    erc20Meta: new Map(),       // tokenAddrLower -> {name,symbol,decimals,supply}
+    tokenHolderScan: new Map(), // tokenAddrLower -> {holders:[{addr,balanceBig}], scannedFrom, scannedTo}
+  };
+
+  /* ===== utils ===== */
+  const $ = s => document.querySelector(s);
+  function show(id){ $(id).hidden = false; }
+  function hide(id){ $(id).hidden = true; }
+  function only(pageId){
+    hide('#page-home'); hide('#page-block'); hide('#page-validator'); hide('#page-tx'); hide('#page-token'); hide('#page-address');
+    show(pageId); window.scrollTo(0,0);
+  }
+  function logErr(source, msg){
+    const key = source; if(STATE.logged.has(key)) return; STATE.logged.add(key);
+    const box = $('#diag'); if(!box) return;
+    const line = document.createElement('div');
+    line.innerHTML = '<span class="text-red-600">[Error]</span> <span class="mono"></span> — <span class="mono"></span>';
+    line.children[1].textContent = source; line.children[2].textContent = msg; box.appendChild(line);
+  }
+  const fmt = (n, d=2) => Number(n).toLocaleString('en-US', { maximumFractionDigits:d });
+  const hexI  = (h) => parseInt(h,16);
+  const pow10 = (p)=>{ let x=1; for(let i=0;i<p;i++) x*=10; return x; };
+
+  // exact BigInt 10^p
+  const bigPow10 = (p)=> BigInt('1' + '0'.repeat(p));
+
+  const shorten = (s,a=10,b=8)=>s?(s.length<=a+b?s:s.slice(0,a)+'…'+s.slice(-b)):'';
+  function toUTCCompact(isoOrDate){
+    if(!isoOrDate) return '—';
+    const d = (isoOrDate instanceof Date) ? isoOrDate : new Date(isoOrDate);
+    if(isNaN(d.getTime())) return '—';
+    const pad=n=>String(n).padStart(2,'0');
+    return d.getUTCFullYear()+'-'+pad(d.getUTCMonth()+1)+'-'+pad(d.getUTCDate())+' '+pad(d.getUTCHours())+':'+pad(d.getUTCMinutes())+':'+pad(d.getUTCSeconds())+' UTC';
+  }
+  const parseDecToAtomics18 = (decStr)=>{
+    const s=String(decStr||'0'); const i=s.indexOf('.');
+    if(i<0) return BigInt((s||'0'))*bigPow10(18);
+    const whole=s.slice(0,i)||'0'; const frac=s.slice(i+1).padEnd(18,'0').slice(0,18);
+    return BigInt((whole+frac).replace(/^0+/, '') || '0');
+  };
+  const sleep = (ms)=> new Promise(r=>setTimeout(r,ms));
+
+  async function jfetch(url, opts={}, retries=RETRIES_PRIMARY, backoffMs=BACKOFF_START_MS){
+    const ctrl = new AbortController(); const t=setTimeout(()=>ctrl.abort(), opts.timeout || HTTP_TIMEOUT_MS);
+    try{
+      const r = await fetch(url, { ...opts, signal: ctrl.signal });
+      if(!r.ok){ logErr(url, 'HTTP '+r.status); throw new Error('HTTP '+r.status+' @ '+url); }
+      return await r.json();
+    }catch(e){
+      if(retries>0){ await sleep(backoffMs); return jfetch(url, opts, retries-1, backoffMs*1.8); }
+      logErr(url, (e && (e.message||e.name)) || 'fetch failed'); throw e;
+    }finally{ clearTimeout(t); }
+  }
+  async function rpc(method, params=[], retries=RETRIES_PRIMARY, backoffMs=BACKOFF_START_MS){
+    const payload = {jsonrpc:'2.0',id:1,method,params};
+    const ctrl = new AbortController(); const t=setTimeout(()=>ctrl.abort(),HTTP_TIMEOUT_MS);
+    try{
+      const r = await fetch(EVM_RPC,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload),signal:ctrl.signal});
+      if(!r.ok){ logErr('RPC '+method, 'HTTP '+r.status); throw new Error('RPC '+method+' HTTP '+r.status); }
+      const j = await r.json(); if(j.error){ logErr('RPC '+method, j.error.message); throw new Error(j.error.message); }
+      return j.result;
+    }catch(e){
+      if(retries>0){ await sleep(backoffMs); return rpc(method, params, retries-1, backoffMs*1.8); }
+      logErr('RPC '+method, (e && (e.message||e.name)) || 'rpc failed'); throw e;
+    }finally{ clearTimeout(t); }
+  }
+
+  /* ===== bech32 <-> hex helpers ===== */
+  const BECH32_CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+  function bech32Polymod(values){
+    const G=[0x3b6a57b2,0x26508e6d,0x1ea119fa,0x3d4233dd,0x2a1462b3];
+    let chk=1; for(const v of values){ const top=chk>>>25; chk=((chk&0x1ffffff)<<5)^v; for(let i=0;i<5;i++){ if(((top>>>i)&1)!==0) chk^=G[i]; } } return chk;
+  }
+  function bech32HrpExpand(hrp){ const ret=[]; for(let i=0;i<hrp.length;i++) ret.push(hrp.charCodeAt(i)>>>5); ret.push(0); for(let i=0;i<hrp.length;i++) ret.push(hrp.charCodeAt(i)&31); return ret; }
+  function bech32CreateChecksum(hrp, data){ const values=bech32HrpExpand(hrp).concat(data); const polymod=bech32Polymod(values.concat([0,0,0,0,0,0]))^1; const ret=[]; for(let p=0;p<6;p++) ret.push((polymod>>>5*(5-p))&31); return ret; }
+  function bech32Encode(hrp,data){ const comb=data.concat(bech32CreateChecksum(hrp,data)); let out=hrp+'1'; for(const c of comb) out+=BECH32_CHARSET.charAt(c); return out; }
+  function bech32Decode(addr){
+    const lower = addr.toLowerCase();
+    const pos = lower.lastIndexOf('1');
+    if(pos<1) throw new Error('invalid bech32');
+    const hrp = lower.slice(0,pos);
+    const data = lower.slice(pos+1);
+    const vals=[]; for(let i=0;i<data.length;i++){ const c=BECH32_CHARSET.indexOf(data[i]); if(c===-1) throw new Error('invalid bech32 char'); vals.push(c); }
+    if(bech32Polymod(bech32HrpExpand(hrp).concat(vals)) !== 1) throw new Error('invalid checksum');
+    return { hrp, words: vals.slice(0,-6) };
+  }
+  function convertBits(data,from,to,pad=true){ let acc=0,bits=0,ret=[],maxv=(1<<to)-1,maxacc=(1<<(from+to-1))-1; for(const val of data){ if(val<0||(val>>from)!==0) return null; acc=((acc<<from)|val)&maxacc; bits+=from; while(bits>=to){ bits-=to; ret.push((acc>>bits)&maxv);} } if(pad){ if(bits>0) ret.push((acc<<(to-bits))&maxv);} else if(bits>=from || ((acc<<(to-bits))&maxv)){ return null;} return ret; }
+  function hexToBech32(prefix,hex){
+    const clean=hex.replace(/^0x/,'').toLowerCase(); if(clean.length!==40) return null;
+    const bytes=[]; for(let i=0;i<clean.length;i+=2) bytes.push(parseInt(clean.slice(i,i+2),16));
+    const five=convertBits(bytes,8,5,true); if(!five) return null; return bech32Encode(prefix,five);
+  }
+  function bech32ToHex(bech){
+    const {words} = bech32Decode(bech);
+    const bytes = convertBits(words,5,8,false);
+    if(!bytes || bytes.length!==20) throw new Error('invalid bech32 length');
+    let hex=''; for(const b of bytes){ const v=b.toString(16); hex += v.length===1?('0'+v):v; }
+    return '0x'+hex.toLowerCase();
+  }
+
+  /* ===== Hash/address responsive link helpers ===== */
+  function hashLink(href, full, {className='link mono clamp-xs break-any', a=10, b=8}={}){
+    const short = shorten(full, a, b);
+    return `<a class="${className}" href="${href}" title="${full}" aria-label="${full}">
+              <span class="hash-short">${short}</span><span class="hash-full">${full}</span>
+            </a>`;
+  }
+
+  /* ===== Denom normalization (always display L1 for base‑denom variants) ===== */
+  const normDenom = (d)=> (String(d||'').trim().toLowerCase());
+  function isDenomBaseLike(d){
+    const dn = normDenom(d);
+    if(!dn) return false;
+    const base = normDenom(BASE_DENOM||'ul1');
+    if(dn===base) return true;
+    // Include common variants that may appear (typos or aliases)
+    const disp = normDenom(DISPLAY_DENOM); // 'l1'
+    if(dn===disp) return true;
+    if(dn==='u'+disp) return true; // 'ul1'
+    if(dn==='el1') return true;    // safety alias seen in logs
+    return false;
+  }
+  function toDisplayFromBaseInt(amountIntStr){
+    try{
+      const bi = BigInt(String(amountIntStr||'0'));
+      return fmt(Number(bi)/pow10(COSMOS_DECIMALS), 6);
+    }catch(_){ return String(amountIntStr||'0'); }
+  }
+  function formatFeeCoins(coins){
+    if(!Array.isArray(coins) || coins.length===0) return '—';
+    let baseSum=0n; const parts=[];
+    for(const c of coins){
+      if(isDenomBaseLike(c.denom)){
+        try{ baseSum += BigInt(String(c.amount||'0')); }catch(_){}
+      }else{
+        parts.push(`${c.amount} ${c.denom}`);
+      }
+    }
+    if(baseSum>0n) parts.unshift(`${fmt(Number(baseSum)/pow10(COSMOS_DECIMALS),6)} ${DISPLAY_DENOM}`);
+    return parts.join(' + ') || '—';
+  }
+
+  /* ===== Connectivity badges ===== */
+  async function checkConnections(){
+    try{ await rpc('eth_blockNumber'); $('#rpcBadge').textContent='EVM RPC: connected'; }catch(_){ $('#rpcBadge').textContent='EVM RPC: error'; }
+    try{ await jfetch(COSMOS_LCD+'/cosmos/base/tendermint/v1beta1/node_info'); $('#lcdBadge').textContent='LCD: connected'; }catch(_){ $('#lcdBadge').textContent='LCD: error'; }
+    try{ await jfetch(TENDERMINT_RPC+'/status'); $('#tmBadge').textContent='Tendermint: connected'; }catch(_){ $('#tmBadge').textContent='Tendermint: error'; }
+  }
+
+  /* ===== denom + decimals detection ===== */
+  async function detectDenomAndDecimals(){
+    try{ const mint = await jfetch(COSMOS_LCD+'/cosmos/mint/v1beta1/params'); if(mint?.params?.mint_denom) BASE_DENOM = mint.params.mint_denom; }catch(_){}
+    try{ const stk  = await jfetch(COSMOS_LCD+'/cosmos/staking/v1beta1/params'); if(stk?.params?.bond_denom) BASE_DENOM = stk.params.bond_denom; }catch(_){}
+    try{
+      let key=''; let found=null;
+      do{
+        const res = await jfetch(COSMOS_LCD+'/cosmos/bank/v1beta1/denoms_metadata?pagination.key='+(key?encodeURIComponent(key):'')+'&pagination.limit=200');
+        const list = res?.metadatas || [];
+        if(!found){
+          found = list.find(m => m.base===BASE_DENOM) ||
+                  list.find(m => (m.display||'').toLowerCase()==='l1');
+        }
+        key = res?.pagination?.next_key || '';
+      }while(!found && key);
+      const du = (found?.denom_units||[]).find(u => (u.denom||'').toLowerCase() === (found?.display||'l1').toLowerCase());
+      if(du && typeof du.exponent==='number') COSMOS_DECIMALS = du.exponent;
+    }catch(_){}
+  }
+
+  /* ===== validators cache ===== */
+  async function buildPkInfo(){
+    const statuses = ['BOND_STATUS_BONDED','BOND_STATUS_UNBONDING','BOND_STATUS_UNBONDED'];
+    for(const st of statuses){
+      let key='';
+      do{
+        const vj = await jfetch(`${COSMOS_LCD}/cosmos/staking/v1beta1/validators?status=${st}&pagination.key=${key?encodeURIComponent(key):''}&pagination.limit=200`);
+        for(const v of (vj.validators||[])){
+          const pk = v?.consensus_pubkey?.key || v?.consensus_pubkey?.value;
+          const mon = v?.description?.moniker || '—';
+          const oper = v.operator_address;
+          if(pk) STATE.pkInfo.set(pk, {validator:mon, oper});
+          if(oper && !STATE.valMeta.has(oper)) STATE.valMeta.set(oper, {moniker:mon, jailed:!!v.jailed, status:v.status||''});
+        }
+        key = vj.pagination?.next_key || '';
+      }while(key);
+    }
+  }
+  async function ensureValMeta(valopers){
+    const missing = valopers.filter(v => !STATE.valMeta.has(v));
+    if(missing.length===0) return;
+    const cap = 6; let i=0;
+    async function fetchOne(op){
+      try{
+        const j = await jfetch(`${COSMOS_LCD}/cosmos/staking/v1beta1/validators/${op}`, {}, 1);
+        const vd=j?.validator; if(vd){ STATE.valMeta.set(op, {moniker: vd?.description?.moniker||'—', jailed: !!vd?.jailed, status: vd?.status||''}); }
+      }catch(_){}
+    }
+    while(i<missing.length){
+      const chunk = []; for(let k=0;k<cap && i<missing.length;k++,i++) chunk.push(fetchOne(missing[i]));
+      await Promise.allSettled(chunk);
+    }
+  }
+  function valMoniker(op){ return (STATE.valMeta.get(op)||{}).moniker || '—'; }
+
+  /* ===== STATS ===== */
+  function humanUnbondingTime(s){
+    if(!s) return '—';
+    const m = String(s).match(/^(\d+)s$/); if(!m) return s;
+    const sec = parseInt(m[1],10)||0;
+    const days = Math.floor(sec/86400);
+    const rem  = sec%86400;
+    const hrs  = Math.floor(rem/3600);
+    const mins = Math.floor((rem%3600)/60);
+    if(days>0) return `${days} day${days>1?'s':''} ${hrs}h`;
+    if(hrs>0)  return `${hrs}h ${mins}m`;
+    return `${mins}m`;
+  }
+
+  async function loadStats(){
+    // Latest block + times
+    try{
+      const status = await jfetch(TENDERMINT_RPC+'/status', {}, 1);
+      const h = parseInt(status?.result?.sync_info?.latest_block_height || status?.sync_info?.latest_block_height || '0',10) || 0;
+      if(h>0){
+        $('#d_latest_block').textContent = '#'+h.toLocaleString('en-US');
+        const b1 = await jfetch(TENDERMINT_RPC+'/block?height='+h, {}, 1);
+        const t1iso = b1?.result?.block?.header?.time || '';
+        $('#d_last_time').textContent = 'Last block time (UTC): '+ (t1iso?toUTCCompact(t1iso):'—');
+        const t1 = new Date(t1iso || 0).getTime();
+        const h2 = Math.max(1,h-100);
+        const b2 = await jfetch(TENDERMINT_RPC+'/block?height='+h2, {}, 1);
+        const t2 = new Date(b2?.result?.block?.header?.time || 0).getTime();
+        if(t1 && t2){
+          const avg = (t1 - t2) / (h - h2 + 0.00001);
+          $('#d_avg_time').textContent = (avg/1000).toFixed(2)+'s avg block time (100‑blk window)';
+        }
+      }
+    }catch(_){}
+
+    // Supply
+    let supplyAmt = '0';
+    try{
+      const sup = await jfetch(COSMOS_LCD+'/cosmos/bank/v1beta1/supply/by_denom?denom='+encodeURIComponent(BASE_DENOM), {}, 1);
+      supplyAmt = (sup?.amount?.amount ?? sup?.amount ?? '0');
+    }catch(_){
+      try{
+        const supAll = await jfetch(COSMOS_LCD+'/cosmos/bank/v1beta1/supply?pagination.limit=100000', {}, 1);
+        const hit = (supAll.supply||[]).find(c=>isDenomBaseLike(c.denom));
+        supplyAmt = hit?.amount || '0';
+      }catch(_){}
+    }
+    const supply = Number(BigInt(String(supplyAmt||'0')))/pow10(COSMOS_DECIMALS);
+    $('#s_supply').textContent = fmt(supply,2)+' '+DISPLAY_DENOM;
+
+    // Staking params -> Unstaking
+    try{
+      const sp = await jfetch(COSMOS_LCD+'/cosmos/staking/v1beta1/params', {}, 1);
+      const ub = sp?.params?.unbonding_time;
+      $('#s_unstaking').textContent = humanUnbondingTime(ub);
+      if(sp?.params?.bond_denom) BASE_DENOM = sp.params.bond_denom;
+    }catch(_){}
+
+    // Inflation
+    let inflPct = null;
+    try{
+      const infl = await jfetch(COSMOS_LCD+'/cosmos/mint/v1beta1/inflation', {}, 1);
+      const v = infl?.inflation; const f = (typeof v === 'number') ? v : parseFloat(v||'0'); if(isFinite(f) && f>0) inflPct=f*100;
+    }catch(_){}
+    if(inflPct===null){
+      try{
+        const ap = await jfetch(COSMOS_LCD+'/cosmos/mint/v1beta1/annual_provisions', {}, 1);
+        const apDec = parseDecToAtomics18(ap?.annual_provisions || '0');
+        const apHuman = Number(apDec)/pow10(18 + COSMOS_DECIMALS);
+        if(supply>0) inflPct = (apHuman/supply)*100;
+      }catch(_){}
+    }
+    $('#s_inflation').textContent = inflPct!==null ? (Math.round(inflPct)+'%') : '—';
+
+    // Community pool (sum base-like)
+    let commDec = 0n;
+    try{
+      const cp = await jfetch(COSMOS_LCD+'/cosmos/distribution/v1beta1/community_pool', {}, 1);
+      const coins = cp.community_pool || cp.pool || (cp.pool && cp.pool.pool) || [];
+      for(const coin of (Array.isArray(coins)?coins:[])){
+        if(isDenomBaseLike(coin.denom) && coin.amount) commDec += parseDecToAtomics18(coin.amount);
+      }
+    }catch(_){}
+    const comm = Number(commDec)/pow10(18 + COSMOS_DECIMALS);
+    $('#s_comm').textContent = fmt(comm,2)+' '+DISPLAY_DENOM;
+    if(supply>0){
+      const pct = Math.min(100,(comm/supply)*100);
+      $('#s_comm_pct').textContent = Math.round(pct)+'% of supply';
+    }else{ $('#s_comm_pct').textContent='—'; }
+
+    // Staked & validators (unchanged)
+    let activeTok=0n, jailedTok=0n, valActive=0;
+    try{
+      let key=''; do{
+        const vj = await jfetch(COSMOS_LCD+'/cosmos/staking/v1beta1/validators?status=BOND_STATUS_BONDED&pagination.key='+(key?encodeURIComponent(key):'')+'&pagination.limit=200', {}, 1);
+        for(const v of (vj.validators||[])){
+          const t = BigInt(v.tokens||'0');
+          if(v.jailed){ jailedTok+=t; } else { activeTok+=t; valActive++; }
+        }
+        key = vj.pagination?.next_key || '';
+      }while(key);
+      for(const st of ['BOND_STATUS_UNBONDING','BOND_STATUS_UNBONDED']){
+        let k=''; do{
+          const j = await jfetch(COSMOS_LCD+'/cosmos/staking/v1beta1/validators?status='+st+'&pagination.key='+(k?encodeURIComponent(k):'')+'&pagination.limit=200', {}, 1);
+          for(const v of (j.validators||[])){ if(v.jailed){ jailedTok += BigInt(v.tokens||'0'); } }
+          k = j.pagination?.next_key || '';
+        }while(k);
+      }
+    }catch(_){}
+    const active = Number(activeTok)/pow10(COSMOS_DECIMALS);
+    const jailed = Number(jailedTok)/pow10(COSMOS_DECIMALS);
+    const stakedTotal = active + jailed;
+    $('#s_staked_total').textContent = fmt(stakedTotal,2)+' '+DISPLAY_DENOM;
+    $('#s_staked_total_pct').textContent = supply>0 ? Math.round((stakedTotal/supply)*100)+'% of supply' : '—';
+    $('#s_staked_active').textContent = fmt(active,2)+' '+DISPLAY_DENOM;
+    $('#s_staked_active_pct').textContent = supply>0 ? Math.round((active/supply)*100)+'% of supply' : '—';
+    $('#s_staked_jailed').textContent = fmt(jailed,2)+' '+DISPLAY_DENOM;
+    $('#s_staked_jailed_pct').textContent = supply>0 ? Math.round((jailed/supply)*100)+'% of supply' : '—';
+    $('#d_active_validators').textContent = fmt(valActive,0);
+
+    // Unclaimed rewards (validators) — sum base-like
+    try{
+      let key=''; const opers=[]; do{
+        const vj = await jfetch(COSMOS_LCD+'/cosmos/staking/v1beta1/validators?status=BOND_STATUS_BONDED&pagination.key='+(key?encodeURIComponent(key):'')+'&pagination.limit=200', {}, 1);
+        for(const v of (vj.validators||[])) opers.push(v.operator_address);
+        key = vj.pagination?.next_key || '';
+      }while(key);
+      let totalDec=0n;
+      const reqs = await Promise.allSettled(opers.map(op => jfetch(COSMOS_LCD+'/cosmos/distribution/v1beta1/validators/'+op+'/outstanding_rewards', {}, 1)));
+      for(const r of reqs){
+        if(r.status==='fulfilled'){
+          const coins = r.value?.rewards?.rewards || r.value?.rewards || [];
+          for(const m of (coins||[])){
+            if(isDenomBaseLike(m.denom) && m.amount) totalDec += parseDecToAtomics18(m.amount);
+          }
+        }
+      }
+      const rewards = Number(totalDec)/pow10(18 + COSMOS_DECIMALS);
+      $('#s_rewards').textContent = fmt(rewards,2)+' '+DISPLAY_DENOM;
+      $('#s_rewards_pct').textContent = supply>0 ? Math.round((rewards/supply)*100)+'% of supply' : '—';
+    }catch(_){}
+
+    // Unbonding (chain-wide)
+    try{
+      let key=''; const opers=[]; let ubSum=0n;
+      do{
+        const vj = await jfetch(COSMOS_LCD+'/cosmos/staking/v1beta1/validators?status=BOND_STATUS_BONDED&pagination.key='+(key?encodeURIComponent(key):'')+'&pagination.limit=200', {}, 1);
+        for(const v of (vj.validators||[])) opers.push(v.operator_address);
+        key = vj.pagination?.next_key || '';
+      }while(key);
+      const uReqs = await Promise.allSettled(opers.map(op => jfetch(COSMOS_LCD+'/cosmos/staking/v1beta1/validators/'+op+'/unbonding_delegations?pagination.limit=200', {}, 1)));
+      for(const u of uReqs){
+        if(u.status==='fulfilled'){
+          for(const resp of (u.value?.unbonding_responses||[])){
+            for(const e of (resp.entries||[])) ubSum += BigInt(e.balance||'0');
+          }
+        }
+      }
+      $('#s_unbonding').textContent = fmt(Number(ubSum)/pow10(COSMOS_DECIMALS),2)+' '+DISPLAY_DENOM;
+    }catch(_){}
+
+    // Osmosis (light; graceful fallback)
+    if(ENABLE_OSMOSIS_SCAN){
+      try{
+        const known = [
+          'ibc/F16FDC11A7662B86BC0B9CE61871CBACF7C20606F95E86260FD38915184B75B4',
+          'ibc/DABCB5B2232B630C196330AC2A8010C9DBDE8B783FDFF3FB105540939BE27775'
+        ];
+        let totalOs=0n;
+        for(const kd of known){
+          try{
+            const os = await jfetch(OSMOSIS_LCD+'/cosmos/bank/v1beta1/supply/by_denom?denom='+encodeURIComponent(kd), {}, 1);
+            totalOs += BigInt(String(os?.amount?.amount ?? os?.amount ?? '0'));
+          }catch(_){}
+        }
+        if(totalOs===0n){
+          const j = await jfetch(OSMOSIS_LCD+'/ibc/apps/transfer/v1/denom_traces?pagination.limit=200', {}, 1);
+          const traces = j?.denom_traces || [];
+          let tries=0;
+          for(const t of traces){
+            if((t?.base_denom||'')!==BASE_DENOM || !t?.path) continue;
+            try{
+              const enc = new TextEncoder();
+              const buf = await crypto.subtle.digest('SHA-256', enc.encode(t.path+'/'+t.base_denom));
+              const bytes = new Uint8Array(buf);
+              let hex=''; for(const b of bytes){ const v=b.toString(16); hex += (v.length===1?'0'+v:v); }
+              const denom = 'ibc/'+hex.toUpperCase();
+              const os = await jfetch(OSMOSIS_LCD+'/cosmos/bank/v1beta1/supply/by_denom?denom='+encodeURIComponent(denom), {}, 1);
+              totalOs += BigInt(String(os?.amount?.amount ?? os?.amount ?? '0'));
+              tries++; if(tries>=2) break;
+            }catch(_){}
+          }
+        }
+        const osmo = Number(totalOs)/pow10(COSMOS_DECIMALS);
+        $('#s_osmo').textContent = fmt(osmo,2)+' '+DISPLAY_DENOM;
+        $('#s_osmo_pct').textContent = supply>0 ? Math.round((osmo/supply)*100)+'% of supply' : '—';
+      }catch(e){ logErr('osmosis','unavailable'); }
+    } else {
+      $('#s_osmo').textContent='—'; $('#s_osmo_pct').textContent='—';
+    }
+  }
+
+  /* ===== Blocks (home) ===== */
+  async function tmValAddrToPk(height){
+    const addr2pk = new Map();
+    let page = 1; const per = 200;
+    while(true){
+      const u = `${TENDERMINT_RPC}/validators?height=${height}&page=${page}&per_page=${per}`;
+      const j = await jfetch(u, {}, 1);
+      const list = j?.result?.validators || j?.validators || [];
+      for(const t of list){
+        const addr = (t.address||'').toUpperCase();
+        const pk = t?.pub_key?.value || t?.pub_key?.ed25519 || t?.pub_key?.secp256k1 || '';
+        if(addr && pk) addr2pk.set(addr, pk);
+      }
+      const total = parseInt(j?.result?.total || j?.total || String(list.length), 10);
+      const count = parseInt(j?.result?.count || j?.count || String(list.length), 10);
+      if(isNaN(total) || page*per >= total || count < per) break;
+      page++;
+    }
+    return addr2pk;
+  }
+
+  async function refreshBlocks(){
+    let head; try{ head = hexI(await rpc('eth_blockNumber',[],1)); }catch(_){ return; }
+    if(!STATE.lastHead) STATE.lastHead = head - 10;
+    const container = $('#blocks');
+
+    for(let n=Math.max(head-9, STATE.lastHead+1); n<=head; n++){
+      if(n<=0) continue;
+      let b; try{ b = await rpc('eth_getBlockByNumber', ['0x'+n.toString(16), true], 1); }catch(_){ continue; }
+      if(!b || STATE.seenBlocks.has(b.hash)) continue;
+
+      let tm=null; try{ tm = await jfetch(TENDERMINT_RPC+'/block?height='+n, {}, 1); }catch(_){}
+      const ts = toUTCCompact(new Date(hexI(b.timestamp)*1000));
+      const txCount = (b.transactions||[]).length;
+
+      const addr2pk = await tmValAddrToPk(n);
+      const proposerAddr = (tm?.result?.block?.header?.proposer_address || '').toUpperCase();
+      const proposerPk = addr2pk.get(proposerAddr);
+      const propInfo = proposerPk ? (STATE.pkInfo.get(proposerPk) || {validator:proposerAddr, oper:''}) : {validator:proposerAddr || '—', oper:''};
+      const moniker = propInfo.validator || '—';
+      const op = propInfo.oper || '';
+
+      const row = document.createElement('div'); row.className='block-row';
+      row.innerHTML =
+        `<div class="blk-left min-w-0">
+           <div class="blk-icon">
+             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#111827" stroke-width="1.6">
+               <rect x="3.5" y="3.5" width="7" height="7" rx="2"></rect>
+               <rect x="13.5" y="3.5" width="7" height="7" rx="2"></rect>
+               <rect x="3.5" y="13.5" width="7" height="7" rx="2"></rect>
+               <rect x="13.5" y="13.5" width="7" height="7" rx="2"></rect>
+             </svg>
+           </div>
+           <div class="min-w-0">
+             <div class="blk-title"><a class="link" href="#/block/${n}">Block #${n.toLocaleString('en-US')}</a></div>
+             <div class="blk-meta mono truncate">Proposer: ${
+                op ? `<a class="link" href="#/validator/${op}">${moniker}</a>` : moniker
+             }</div>
+           </div>
+         </div>
+         <div class="text-right">
+           <div class="text-sm">${txCount} txs</div>
+           <div class="blk-meta mono">Time (UTC): ${ts}</div>
+         </div>`;
+      container.prepend(row);
+      STATE.seenBlocks.add(b.hash);
+      while(container.children.length>10) container.removeChild(container.lastChild);
+    }
+    STATE.lastHead = Math.max(STATE.lastHead, head);
+  }
+
+  /* ===== TX list render ===== */
+  function renderTxList(rows, {stale=false} = {}){
+    const cont = $('#unifiedTxs');
+    cont.innerHTML = '';
+    if(stale){
+      const note = document.createElement('div');
+      note.className = 'row text-xs text-amber-600';
+      note.textContent = 'Showing cached results (upstream was slow or throttled). Auto‑refresh will retry.';
+      cont.appendChild(note);
+    }
+    for(const r of rows){
+      const row = document.createElement('div'); row.className='row';
+      if(r.src==='EVM'){
+        row.innerHTML =
+          `<div class="flex items-center justify-between">
+             <div class="flex items-center gap-2">
+               <span class="status-dot"></span>
+               ${hashLink('#/tx/evm/'+r.hash, r.hash, {className:'link mono clamp-xs'})}
+             </div>
+             <a class="link text-xs text-gray-500" href="#/block/${r.height}">#${r.height}</a>
+           </div>
+           <div class="text-xs text-gray-700">
+             EVM • ${hashLink('#/address/'+r.from, r.from, {className:'link mono clamp-xs'})}
+             &nbsp;→&nbsp;
+             ${hashLink('#/address/'+r.to, r.to, {className:'link mono clamp-xs'})}
+           </div>
+           <div class="text-xs text-gray-500">Time (UTC): ${r.tsISO}</div>`;
+      }else{
+        row.innerHTML =
+          `<div class="flex items-center justify-between">
+             <div class="flex items-center gap-2">
+               <span class="status-dot"></span>
+               ${hashLink('#/tx/cosmos/'+r.hash, r.hash, {className:'link mono clamp-xs'})}
+             </div>
+             <span class="text-xs text-gray-500">#${r.height}</span>
+           </div>
+           <div class="text-xs text-gray-700">Cosmos • ${r.types||'—'}</div>
+           <div class="text-xs text-gray-500">Time (UTC): ${r.tsISO||'—'}</div>`;
+      }
+      cont.appendChild(row);
+    }
+  }
+
+  /* ===== Deep scans for Latest 10 ===== */
+
+  async function scanEvmTxs(limit=10, cap=EVM_SCAN_CAP){
+    const out=[]; const seen=new Set();
+
+    // Seed from head block to include freshest
+    let head=0;
+    try{ head = hexI(await rpc('eth_blockNumber',[],1)); }catch(_){ head = 0; }
+    if(head>0){
+      try{
+        const headBlk = await rpc('eth_getBlockByNumber',['0x'+head.toString(16), true],1);
+        if(headBlk && headBlk.transactions){
+          const tsEpoch = hexI(headBlk.timestamp) * 1000;
+          const tsISO   = toUTCCompact(new Date(tsEpoch));
+          const bn      = hexI(headBlk.number);
+          for(const tx of headBlk.transactions){
+            if(seen.has(tx.hash)) continue;
+            seen.add(tx.hash);
+            out.push({
+              src:'EVM', hash:tx.hash, height:bn,
+              tsISO, tsNum: tsEpoch,
+              from:tx.from, to:tx.to||'0x', amount:tx.value
+            });
+          }
+        }
+      }catch(_){}
+    }
+
+    if(head===0){ try{ head = hexI(await rpc('eth_blockNumber',[],1)); }catch(_){ return out.slice(0,limit); } }
+    const WINDOW=100, CONC=6;
+    const from = Math.max(0, head - cap + 1);
+
+    for(let start=head; start>=from && out.length<limit; start-=WINDOW){
+      const end = Math.max(from, start - WINDOW + 1);
+      const nums = []; for(let n=start; n>=end; n--) nums.push(n);
+      let idx=0;
+      async function workerCnt(){
+        while(idx<nums.length && out.length<limit){
+          const n = nums[idx++];
+          try{
+            const cntHex = await rpc('eth_getBlockTransactionCountByNumber',['0x'+n.toString(16)],1);
+            const cnt = parseInt(cntHex,16)||0;
+            if(cnt>0){
+              const b = await rpc('eth_getBlockByNumber',['0x'+n.toString(16), true],1);
+              if(!b || !b.transactions) continue;
+              const tsEpoch = hexI(b.timestamp) * 1000;
+              const tsISO   = toUTCCompact(new Date(tsEpoch));
+              const bn      = hexI(b.number);
+              for(let i=b.transactions.length-1;i>=0 && out.length<limit;i--){
+                const tx = b.transactions[i];
+                if(seen.has(tx.hash)) continue;
+                seen.add(tx.hash);
+                out.push({
+                  src:'EVM', hash:tx.hash, height:bn,
+                  tsISO, tsNum: tsEpoch,
+                  from:tx.from, to:tx.to||'0x', amount:tx.value
+                });
+              }
+            }
+          }catch(_){ /* skip */ }
+        }
+      }
+      const workers = Array.from({length:CONC}, workerCnt);
+      await Promise.allSettled(workers);
+    }
+    return out.slice(0,limit);
+  }
+
+  async function scanCosmosTxs(limit=10, cap=COSMOS_SCAN_HEIGHTS){
+    const out=[];
+    let latest=0; try{ const s = await jfetch(TENDERMINT_RPC+'/status', {}, 1); latest = parseInt(s?.result?.sync_info?.latest_block_height || s?.sync_info?.latest_block_height || '0',10)||0; }catch(_){}
+    if(!latest) return out;
+    const STEP=300; // window for /blockchain
+    for(let high=latest; high>Math.max(0, latest-cap) && out.length<limit; high-=STEP){
+      const low = Math.max(1, high-STEP+1);
+      let metas=[];
+      try{
+        const j = await jfetch(`${TENDERMINT_RPC}/blockchain?minHeight=${low}&maxHeight=${high}`, {}, 1);
+        metas = (j?.result?.block_metas || j?.block_metas || []).reverse();
+      }catch(_){}
+      const heights = metas.filter(m=> (m?.num_txs||0)>0).map(m=>parseInt(m?.header?.height || m?.height || '0',10)).filter(Boolean);
+      for(const h of heights){
+        if(out.length>=limit) break;
+        try{
+          const j = await jfetch(COSMOS_LCD+'/cosmos/tx/v1beta1/txs?events='+encodeURIComponent('tx.height='+String(h)), {}, 1);
+          const txs = j.txs || []; const resps = j.tx_responses || [];
+          for(let i=txs.length-1;i>=0 && out.length<limit;i--){
+            const tx=txs[i], resp=resps[i]||{};
+            const isoRaw = resp.timestamp || '';
+            let tsEpoch = 0, tsISO='';
+            if(isoRaw){
+              tsEpoch = Date.parse(isoRaw) || 0;
+              tsISO   = tsEpoch ? toUTCCompact(new Date(tsEpoch)) : '';
+            }else{
+              try{ const blk = await jfetch(TENDERMINT_RPC+'/block?height='+ (resp.height || h), {}, 1);
+                   const t = blk?.result?.block?.header?.time || '';
+                   tsEpoch = t? (Date.parse(t)||0) : 0;
+                   tsISO   = tsEpoch ? toUTCCompact(new Date(tsEpoch)) : '';
+              }catch(_){}
+            }
+            out.push({
+              src:'Cosmos',
+              hash: resp.txhash || '',
+              height: parseInt(resp.height||h,10),
+              tsISO: tsISO,
+              tsNum: tsEpoch,
+              types: (tx.body?.messages||[]).map(m => (m['@type']||m.type_url||'').split('.').pop()).join(', ') || '—'
+            });
+          }
+        }catch(_){ /* skip */ }
+      }
+    }
+    return out.slice(0,limit);
+  }
+
+  async function refreshUnifiedTxs(){
+    if(STATE.txInFlight) return;
+    STATE.txInFlight = true;
+    const myRun = ++STATE.txRunId;
+
+    try{
+      const [evm, cos] = await Promise.allSettled([
+        scanEvmTxs(10, EVM_SCAN_CAP),
+        scanCosmosTxs(10, COSMOS_SCAN_HEIGHTS)
+      ]);
+
+      if(myRun !== STATE.txRunId) return;
+
+      const evmList = evm.status==='fulfilled'? evm.value : [];
+      const cosList = cos.status==='fulfilled'? cos.value : [];
+      const merged  = [...evmList, ...cosList].sort((a,b)=> b.tsNum - a.tsNum).slice(0,10);
+
+      if(merged.length > 0){
+        STATE.txCache = merged;
+        STATE.txCacheUpdated = Date.now();
+        renderTxList(merged, {stale:false});
+      }else{
+        if(STATE.txCache.length){
+          renderTxList(STATE.txCache, {stale:true});
+        }else{
+          const cont = $('#unifiedTxs');
+          cont.innerHTML = '<div class="row text-xs text-gray-500">No transactions found in the last 240 blocks/heights (nodes may be throttling). Will retry.</div>';
+        }
+      }
+    }catch(_e){
+      if(STATE.txCache.length){
+        renderTxList(STATE.txCache, {stale:true});
+      }
+    }finally{
+      if(myRun === STATE.txRunId) STATE.txInFlight = false;
+    }
+  }
+
+  /* ===== Router ===== */
+  async function route(){
+    const h = location.hash.replace(/^#/, '');
+    if(!h || h === '/') { only('#page-home'); return; }
+    const parts = h.split('/').filter(Boolean);
+    if(parts[0]==='block' && parts[1]){ only('#page-block'); renderBlockPage(parts[1]); return; }
+    if(parts[0]==='validator' && parts[1]){ only('#page-validator'); renderValidatorPage(parts[1]); return; }
+    if(parts[0]==='tx' && parts[1] && parts[2]){ only('#page-tx'); renderTxPage(parts[1], parts[2]); return; }
+    if(parts[0]==='token' && parts[1]){ only('#page-token'); renderTokenPage(parts[1]); return; }
+    if(parts[0]==='address' && parts[1]){ only('#page-address'); renderAddressPage(parts.slice(1).join('/')); return; }
+    only('#page-home');
+  }
+  window.addEventListener('hashchange', route);
+
+  async function renderBlockPage(height){
+    $('#blkTitle').textContent = 'Block #'+height;
+    $('#blkHeader').innerHTML = 'Loading…';
+    $('#blkCosmos').innerHTML = 'Loading…';
+    $('#blkSigners').innerHTML = '';
+    $('#blkTxList').innerHTML = '';
+
+    try{
+      const b = await rpc('eth_getBlockByNumber', ['0x'+Number(height).toString(16), true], 1);
+      const tm = await jfetch(TENDERMINT_RPC+'/block?height='+height, {}, 1);
+      const ts = toUTCCompact(new Date(hexI(b.timestamp)*1000));
+      const txs = b.transactions || [];
+
+      $('#blkHeader').innerHTML =
+        `<div class="grid md:grid-cols-2 gap-3">
+          <div>
+            <div class="kpi-label">EVM</div>
+
+            <div class="text-xs">Txs: ${txs.length}</div>
+            <div class="text-xs">Gas used / limit: ${hexI(b.gasUsed)} / ${hexI(b.gasLimit)}</div>
+            <div class="text-xs">Time (UTC): ${ts}</div>
+          </div>
+          <div>
+            <div class="kpi-label">Proposer</div>
+            <div class="text-xs mono" id="blkProposer">—</div>
+
+          </div>
+        </div>`;
+
+      const proposerAddr = (tm?.result?.block?.header?.proposer_address || '').toUpperCase();
+      const addr2pk = await tmValAddrToPk(height);
+      const proposerPk = addr2pk.get(proposerAddr);
+      const meta = proposerPk ? (STATE.pkInfo.get(proposerPk) || {validator:proposerAddr, oper:'—'}) : {validator:proposerAddr || '—', oper:'—'};
+      $('#blkProposer').innerHTML = `Validator: ${meta.oper && meta.oper!=='—' ? `<a class="link" href="#/validator/${meta.oper}">${meta.validator}</a>` : meta.validator}`;
+
+
+      // signers
+      const sigs = tm?.result?.block?.last_commit?.signatures || [];
+      const signBox = $('#blkSigners');
+      for(let i=0;i<sigs.length;i++){
+        const a = (sigs[i] && sigs[i].validator_address) ? sigs[i].validator_address.toUpperCase() : '';
+        const pk = addr2pk.get(a);
+        const info = pk ? (STATE.pkInfo.get(pk) || {validator:a, oper:'—'}) : {validator:a || '—', oper:'—'};
+        const el = document.createElement('span');
+        el.className = 'mono tiny bg-gray-100 border rounded px-1 py-0.5';
+        el.innerHTML = `${info.validator} · ${info.oper && info.oper!=='—' ? `<a class="link mono" href="#/validator/${info.oper}">${info.oper}</a>` : '—'}`;
+        signBox.appendChild(el);
+      }
+
+      // Cosmos info
+      $('#blkCosmos').innerHTML =
+        `<div class="kpi-label">Cosmos</div>
+         <div class="text-xs mono">BlockID: ${tm?.result?.block_id?.hash ? hashLink('#/block/'+height, tm.result.block_id.hash, {className:'link mono clamp-xs'}) : '—'}</div>
+         <div class="text-xs">Header time: ${tm?.result?.block?.header?.time ? toUTCCompact(tm.result.block.header.time) : '—'}</div>`;
+
+      // Tx list
+      const list = txs.slice(0,50).map(t =>
+        `<li class="mono text-xs">
+           ${hashLink('#/tx/evm/'+t.hash, t.hash, {className:'link mono clamp-xs'})} — 
+           ${hashLink('#/address/'+t.from, t.from, {className:'link mono clamp-xs'})} → ${hashLink('#/address/'+(t.to||'0x'), (t.to||'0x'), {className:'link mono clamp-xs'})}
+         </li>`
+      ).join('');
+      $('#blkTxList').innerHTML = list || '<li class="text-xs text-gray-500">—</li>';
+    }catch(e){
+      $('#blkHeader').innerHTML = `<div class="text-sm text-red-600">${e.message||String(e)}</div>`;
+    }
+  }
+
+  function valoperToAcc(valoper){
+    try{ const { words } = bech32Decode(valoper); return bech32Encode(BECH32_PREFIX, words); }catch(_){ return null; }
+  }
+  async function renderValidatorPage(valoper){
+    $('#valTitle').textContent = 'Validator '+valoper;
+    $('#valMeta').innerHTML = 'Loading…';
+    $('#valFinance').innerHTML = 'Loading…';
+    $('#valDelegatorsBody').innerHTML = '<tr><td colspan="2" class="text-gray-500">Loading…</td></tr>';
+
+    try{
+      const v = await jfetch(`${COSMOS_LCD}/cosmos/staking/v1beta1/validators/${valoper}`, {}, 1);
+      const vd = v?.validator || {};
+      const validator = vd?.description?.moniker || '—';
+      const jailed  = vd?.jailed ? 'Yes' : 'No';
+      const status  = vd?.status || '—';
+      const tokens  = vd?.tokens ? Number(BigInt(vd.tokens))/pow10(COSMOS_DECIMALS) : 0;
+      const rate    = vd?.commission?.commission_rates?.rate ? (Number(vd.commission.commission_rates.rate)*100) : null;
+      const minSelf = vd?.min_self_delegation || '—';
+      const selfAcc = valoperToAcc(valoper);
+      let selfDeleg = '—';
+      if(selfAcc){
+        try{
+          let key=''; do{
+            const all = await jfetch(`${COSMOS_LCD}/cosmos/staking/v1beta1/delegations/${selfAcc}?pagination.key=${key?encodeURIComponent(key):''}&pagination.limit=200`, {}, 1);
+            const hit = (all?.delegation_responses||[]).find(d => d?.delegation?.validator_address === valoper);
+            if(hit){ const amt=hit.balance?.amount||'0'; selfDeleg = fmt(Number(BigInt(amt))/pow10(COSMOS_DECIMALS), 2)+' '+DISPLAY_DENOM; break; }
+            key = all?.pagination?.next_key || '';
+          }while(key);
+        }catch(_){}
+      }
+      $('#valMeta').innerHTML =
+        `<div class="kpi-label">Validator</div>
+         <div class="kpi-value">${validator}</div>
+         <div class="grid md:grid-cols-2 gap-3 mt-2 text-sm">
+           <div>Status: <span class="mono">${status}</span></div>
+           <div>Jailed: <span class="mono">${jailed}</span></div>
+           <div>Tokens: <span class="mono">${fmt(tokens,2)} ${DISPLAY_DENOM}</span></div>
+           <div>Min self-delegation: <span class="mono">${minSelf}</span></div>
+           <div>Self delegated: <span class="mono">${selfDeleg}</span></div>
+         </div>`;
+
+      // Finance (light) + Delegators
+      let outstanding=0, commission=0, items=[], delegators=0;
+      try{
+        const out = await jfetch(`${COSMOS_LCD}/cosmos/distribution/v1beta1/validators/${valoper}/outstanding_rewards`, {}, 1);
+        const coins = out?.rewards?.rewards || out?.rewards || [];
+        let s=0n; for(const m of coins){ if(isDenomBaseLike(m.denom) && m.amount) s+=parseDecToAtomics18(m.amount); }
+        outstanding = Number(s)/pow10(18+COSMOS_DECIMALS);
+      }catch(_){}
+      try{
+        const com = await jfetch(`${COSMOS_LCD}/cosmos/distribution/v1beta1/validators/${valoper}/commission`, {}, 1);
+        const coins = com?.commission?.commission || [];
+        let s=0n; for(const m of coins){ if(isDenomBaseLike(m.denom) && m.amount) s+=parseDecToAtomics18(m.amount); }
+        commission = Number(s)/pow10(18+COSMOS_DECIMALS);
+      }catch(_){}
+      try{
+        let key=''; do{
+          const del = await jfetch(`${COSMOS_LCD}/cosmos/staking/v1beta1/validators/${valoper}/delegations?pagination.key=${key?encodeURIComponent(key):''}&pagination.limit=200`, {}, 1);
+          items.push(...(del?.delegation_responses||[]));
+          key = del?.pagination?.next_key || '';
+        }while(key);
+        delegators = items.length;
+        const tbody = $('#valDelegatorsBody');
+        tbody.innerHTML = items.map(d => {
+          const acc = d?.delegation?.delegator_address || '';
+          let evm='—'; try{ evm = bech32ToHex(acc); }catch(_){}
+          return `<tr>
+                   <td>${hashLink('#/address/'+acc, acc, {className:'link mono clamp-xs'})}</td>
+                   <td>${hashLink('#/address/'+evm, evm, {className:'link mono clamp-xs'})}</td>
+                 </tr>`;
+        }).join('') || '<tr><td colspan="2" class="text-gray-500">—</td></tr>';
+      }catch(_){
+        $('#valDelegatorsBody').innerHTML = '<tr><td colspan="2" class="text-gray-500">—</td></tr>';
+      }
+
+      $('#valFinance').innerHTML =
+        `<div class="grid-auto">
+           <div class="card p-3">
+             <div class="kpi-label">Commission rate</div>
+             <div class="kpi-value">${rate!==null? Math.round(rate)+'%':'—'}</div>
+             <div class="kpi-sub">Current rate</div>
+           </div>
+           <div class="card p-3">
+             <div class="kpi-label">Outstanding rewards</div>
+             <div class="kpi-value">${fmt(outstanding,2)} ${DISPLAY_DENOM}</div>
+             <div class="kpi-sub">Validator rewards</div>
+           </div>
+           <div class="card p-3">
+             <div class="kpi-label">Commission (accum.)</div>
+             <div class="kpi-value">${fmt(commission,2)} ${DISPLAY_DENOM}</div>
+             <div class="kpi-sub">Validator commission</div>
+           </div>
+           <div class="card p-3">
+             <div class="kpi-label">Delegators</div>
+             <div class="kpi-value">${fmt(delegators,0)}</div>
+             <div class="kpi-sub">Total delegations</div>
+           </div>
+         </div>`;
+    }catch(e){
+      $('#valMeta').innerHTML = `<div class="text-sm text-red-600">${e.message||String(e)}</div>`;
+      $('#valFinance').innerHTML = '';
+      $('#valDelegatorsBody').innerHTML = '<tr><td colspan="2" class="text-gray-500">—</td></tr>';
+    }
+  }
+
+  /* ===== ERC‑20 helpers ===== */
+  const ERC20_SIG = {
+    name:        '06fdde03',
+    symbol:      '95d89b41',
+    decimals:    '313ce567',
+    totalSupply: '18160ddd',
+    balanceOf:   '70a08231',
+  };
+  const ERC20_TOPICS = {
+    Transfer: '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
+    Approval: '0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925'
+  };
+  const strip0x=(h)=> (h||'').startsWith('0x') ? h.slice(2) : (h||'');
+  const pad64=(hex)=> hex.length>=64 ? hex.slice(-64) : ('0'.repeat(64-hex.length)+hex);
+  const encAddress=(addr)=> pad64(strip0x(addr).toLowerCase());
+  const bigFromHex=(h)=> (h && h!=='0x') ? BigInt(h) : 0n;
+
+  function hexToUtf8(hex){
+    const h=strip0x(hex); if(!h) return '';
+    const bytes = new Uint8Array(h.match(/.{1,2}/g).map(b=>parseInt(b,16)));
+    try{ return new TextDecoder('utf-8').decode(bytes).replace(/\u0000+$/,''); }catch(_){ return ''; }
+  }
+  function bytes32ToAscii(hex){
+    const h = strip0x(hex).slice(0,64);
+    let out=''; for(let i=0;i<64;i+=2){ const c=parseInt(h.slice(i,i+2),16); if(c===0) break; out += String.fromCharCode(c); }
+    return out;
+  }
+  function decodeAbiString(res){
+    if(!res || res==='0x') return '';
+    const h = strip0x(res);
+    if(h.length>=128){
+      const len = parseInt(h.slice(64,128),16);
+      const data = h.slice(128, 128 + len*2);
+      const s = hexToUtf8('0x'+data);
+      if(s) return s;
+    }
+    const b32 = bytes32ToAscii(res);
+    return b32 || '';
+  }
+  function decodeUint(res){
+    if(!res || res==='0x') return 0n;
+    const h = strip0x(res);
+    const word = h.slice(-64);
+    return BigInt('0x'+word);
+  }
+
+  async function erc20Call(token, selector, argHex=''){
+    const data = '0x'+selector+(argHex||'');
+    try{
+      const r = await rpc('eth_call', [{ to: token, data }, 'latest'], 1);
+      return r || '0x';
+    }catch(_){ return '0x'; }
+  }
+
+  function formatUnitsBI(valueBI, decimals, prec=6){
+    const d = Math.max(0, Math.min(36, Number(decimals)||0));
+    const p10 = bigPow10(d);
+    const whole = valueBI / p10;
+    const frac  = valueBI % p10;
+    if(frac===0n) return whole.toString();
+    let fracStr = frac.toString().padStart(d,'0');
+    fracStr = fracStr.slice(0, prec).replace(/0+$/,'');
+    return fracStr ? `${whole.toString()}.${fracStr}` : whole.toString();
+  }
+
+  async function getErc20Meta(token){
+    const key = token.toLowerCase();
+    if(STATE.erc20Meta.has(key)) return STATE.erc20Meta.get(key);
+    let decimals=18, name='Token', symbol='TKN', supply=0n;
+    try{
+      const d = decodeUint(await erc20Call(token, ERC20_SIG.decimals));
+      if(d >= 0n && d <= 36n) decimals = Number(d);
+    }catch(_){}
+    try{
+      const s = decodeAbiString(await erc20Call(token, ERC20_SIG.symbol));
+      if(s) symbol = s;
+    }catch(_){}
+    try{
+      const n = decodeAbiString(await erc20Call(token, ERC20_SIG.name));
+      if(n) name = n;
+    }catch(_){}
+    try{
+      const ts = decodeUint(await erc20Call(token, ERC20_SIG.totalSupply));
+      supply = ts;
+    }catch(_){}
+    const meta = { name, symbol, decimals, supply };
+    STATE.erc20Meta.set(key, meta);
+    return meta;
+  }
+
+  function topicAddress(t){
+    const h = strip0x(t||'');
+    if(h.length!==64) return '0x';
+    return '0x'+h.slice(24);
+  }
+
+  /* ===== COSMOS helpers for Asset Flow & tags (with L1 normalization) ===== */
+
+  function parseCoinsToBI18(coinStr){
+    // Accept: "123ul1", "123.456ul1", or comma-separated list
+    const out = new Map(); if(!coinStr) return out;
+    const parts = String(coinStr).split(',').map(s=>s.trim()).filter(Boolean);
+    for(const p of parts){
+      const m = p.match(/^([0-9]+(?:\.[0-9]+)?)([a-zA-Z0-9/._-]+)$/);
+      if(!m) continue;
+      const amountBI18 = parseDecToAtomics18(m[1]);
+      const denom = m[2];
+      out.set(denom, (out.get(denom)||0n) + amountBI18);
+    }
+    return out;
+  }
+
+  function eventsFromTxResp(txResp){
+    const evts=[];
+    const logs = txResp?.logs||[];
+    for(const l of logs){ for(const e of (l?.events||[])) evts.push(e); }
+    return evts;
+  }
+
+  function bi18SumBaseLikeFromMap(map){
+    let s=0n;
+    for(const [denom, val] of map.entries()){
+      if(isDenomBaseLike(denom)) s += (val||0n);
+    }
+    return s;
+  }
+
+  function extractRewardsByValidatorBI18(txResp){
+    // Prefer 'withdraw_rewards' events with ('validator','amount')
+    const byVal = new Map();
+    const evts = eventsFromTxResp(txResp);
+    for(const e of evts){
+      if((e?.type||'')==='withdraw_rewards'){
+        const attrs = e.attributes||[];
+        const val = (attrs.find(a=>a.key==='validator')||{}).value || '';
+        const amtStr = (attrs.find(a=>a.key==='amount')||{}).value || '';
+        if(val && amtStr){
+          const mm = parseCoinsToBI18(amtStr);
+          const v = bi18SumBaseLikeFromMap(mm);
+          if(v>0n) byVal.set(val, (byVal.get(val)||0n)+v);
+        }
+      }
+    }
+    return byVal;
+  }
+
+  function sumCoinReceivedForDelegatorBI18(txResp, delegator){
+    let total=0n;
+    const evts = eventsFromTxResp(txResp);
+    for(const e of evts){
+      if((e?.type||'')==='coin_received'){
+        const attrs = e.attributes||[];
+        const recv = (attrs.find(a=>a.key==='receiver')||{}).value || '';
+        const amtStr = (attrs.find(a=>a.key==='amount')||{}).value || '';
+        if(recv===delegator && amtStr){
+          const mm = parseCoinsToBI18(amtStr);
+          total += bi18SumBaseLikeFromMap(mm);
+        }
+      }else if((e?.type||'')==='transfer'){
+        const attrs = e.attributes||[];
+        const recAttr = attrs.find(a=>a.key==='recipient');
+        const amtAttr = attrs.find(a=>a.key==='amount');
+        if(recAttr?.value===delegator && amtAttr?.value){
+          const mm = parseCoinsToBI18(amtAttr.value);
+          total += bi18SumBaseLikeFromMap(mm);
+        }
+      }
+    }
+    return total;
+  }
+
+  function cosmosTxTags(msgs){
+    const tags = new Set();
+    let hasBank=false, hasStake=false, hasRewards=false, hasIBC=false;
+    for(const m of msgs){
+      const t = (m['@type']||m.type_url||'');
+      if(t.endsWith('cosmos.bank.v1beta1.MsgSend') || t.endsWith('cosmos.bank.v1beta1.MsgMultiSend')) hasBank=true;
+      if(t.includes('cosmos.staking.v1beta1')) hasStake=true;
+      if(t.endsWith('cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward')) hasRewards=true;
+      if(t.endsWith('ibc.applications.transfer.v1.MsgTransfer')) hasIBC=true;
+    }
+    if(hasBank) tags.add('L1 transfer');
+    if(hasStake) tags.add('Staking');
+    if(hasRewards) tags.add('Rewards claim');
+    if(hasIBC) tags.add('IBC transfer');
+    tags.add('Cosmos SDK tx');
+    return [...tags];
+  }
+
+  function cosmosExtractParticipantsAndFlows(lcdTx){
+    const msgs = lcdTx?.tx?.body?.messages || [];
+    const txResp = lcdTx?.tx_response || {};
+    const flows = [];
+
+    const addFlow=(f)=>flows.push(f);
+
+    function amtHumanFromBI18(bi18){
+      const human = Number(bi18)/pow10(18 + COSMOS_DECIMALS);
+      return fmt(human,6);
+    }
+
+    // Rewards mapping by validator (preferred)
+    const rewardsByVal = extractRewardsByValidatorBI18(txResp);
+    const rewardsMsgs = msgs.filter(m => (m['@type']||m.type_url||'').endsWith('cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward'));
+    const singleRewardsMsg = rewardsMsgs.length===1 ? rewardsMsgs[0] : null;
+
+    for(const m of msgs){
+      const type = m['@type'] || m.type_url || '';
+      if(type.endsWith('cosmos.bank.v1beta1.MsgSend')){
+        for(const c of (m.amount||[])){
+          const vHuman = fmt(Number(BigInt(c.amount||'0'))/pow10(COSMOS_DECIMALS),6);
+          addFlow({ label:'Bank Send', from:m.from_address, to:m.to_address, amount: vHuman, denom: DISPLAY_DENOM });
+        }
+      }else if(type.endsWith('cosmos.bank.v1beta1.MsgMultiSend')){
+        const ins = m.inputs||[], outs=m.outputs||[];
+        for(const i of ins){
+          for(const o of outs){
+            addFlow({ label:'MultiSend', from:i.address, to:o.address, amount:'—', denom: DISPLAY_DENOM, extra:'(batched)' });
+          }
+        }
+      }else if(type.endsWith('cosmos.staking.v1beta1.MsgDelegate')){
+        const a=m.amount||{}; const vHuman = fmt(Number(BigInt(a.amount||'0'))/pow10(COSMOS_DECIMALS),6);
+        addFlow({ label:'Delegate', from:m.delegator_address, to:m.validator_address, amount: vHuman, denom: DISPLAY_DENOM });
+      }else if(type.endsWith('cosmos.staking.v1beta1.MsgUndelegate')){
+        const a=m.amount||{}; const vHuman = fmt(Number(BigInt(a.amount||'0'))/pow10(COSMOS_DECIMALS),6);
+        addFlow({ label:'Undelegate', from:m.validator_address, to:m.delegator_address, amount: vHuman, denom: DISPLAY_DENOM });
+      }else if(type.endsWith('cosmos.staking.v1beta1.MsgBeginRedelegate')){
+        const a=m.amount||{}; const vHuman = fmt(Number(BigInt(a.amount||'0'))/pow10(COSMOS_DECIMALS),6);
+        addFlow({ label:'Redelegate', from:m.validator_src_address, to:m.validator_dst_address, amount: vHuman, denom: DISPLAY_DENOM });
+      }else if(type.endsWith('cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward')){
+        let amtBI18 = rewardsByVal.get(m.validator_address) || 0n;
+        if(amtBI18===0n && singleRewardsMsg){
+          amtBI18 = sumCoinReceivedForDelegatorBI18(txResp, m.delegator_address);
+        }
+        const amountHuman = amtBI18>0n ? amtHumanFromBI18(amtBI18) : '—';
+        addFlow({ label:'Rewards claim', from:m.validator_address, to:m.delegator_address, amount: amountHuman, denom: DISPLAY_DENOM });
+      }else if(type.endsWith('ibc.applications.transfer.v1.MsgTransfer')){
+        const a=m.token||{};
+        let amountOut = String(a.amount||'0'); let denomOut = a.denom||'';
+        if(isDenomBaseLike(denomOut)){
+          amountOut = toDisplayFromBaseInt(amountOut);
+          denomOut  = DISPLAY_DENOM;
+        }
+        addFlow({ label:'IBC Transfer', from:m.sender, to:m.receiver, amount: amountOut, denom: denomOut });
+      }
+    }
+    const addrs = new Set();
+    for(const f of flows){ if(f.from) addrs.add(f.from); if(f.to) addrs.add(f.to); }
+    return { flows, participants:[...addrs], tags: cosmosTxTags(msgs) };
+  }
+
+  /* ===== EVM tx helpers ===== */
+  function parseErc20TransfersFromReceipt(rc){
+    const out=[];
+    const logs = rc?.logs || [];
+    for(const l of logs){
+      if((l.topics||[])[0]?.toLowerCase() === ERC20_TOPICS.Transfer){
+        const from = topicAddress(l.topics[1]||'0x');
+        const to   = topicAddress(l.topics[2]||'0x');
+        const value= bigFromHex(l.data||'0x0');
+        out.push({ token: (l.address||'0x'), from, to, value });
+      }
+    }
+    return out;
+  }
+
+  function evmTxTags(tx, rc, transfers){
+    const tags = new Set();
+    if(BigInt(tx.value||'0x0')>0n) tags.add('L1 transfer');
+    if((transfers||[]).length>0) tags.add('ERC‑20 transfer');
+    if(tx.to===null) tags.add('Contract creation');
+    tags.add('EVM tx');
+    return [...tags];
+  }
+
+  async function renderTxPage(kind, hash){
+    $('#txTitle').textContent = (kind==='evm'?'EVM':'Cosmos')+' Tx';
+    $('#txBody').innerHTML = 'Loading…';
+    if(kind==='evm'){
+      try{
+        const tx = await rpc('eth_getTransactionByHash',[hash],1);
+        const rc = await rpc('eth_getTransactionReceipt',[hash],1);
+        const bn = tx.blockNumber ? parseInt(tx.blockNumber,16) : null;
+        const block = bn ? await rpc('eth_getBlockByNumber', [tx.blockNumber, false], 1) : null;
+        const ts = block ? toUTCCompact(new Date(parseInt(block.timestamp,16)*1000)) : '—';
+        const gasUsed = rc?.gasUsed ? parseInt(rc.gasUsed,16) : 0;
+        const effPrice = rc?.effectiveGasPrice ? BigInt(rc.effectiveGasPrice) : 0n;
+        const gasCost  = (BigInt(gasUsed)||0n) * effPrice;
+
+        const valBase = BigInt(tx.value||'0x0');
+        const valueHuman = formatUnitsBI(valBase, EVM_DECIMALS, 6);
+        const gasHuman   = formatUnitsBI(gasCost, EVM_DECIMALS, 6);
+
+        // ERC-20 transfers
+        const transfers = parseErc20TransfersFromReceipt(rc);
+        const uniqTokens = [...new Set(transfers.map(t=>t.token.toLowerCase()))];
+        const metas = new Map();
+        await Promise.all(uniqTokens.map(async (addr)=>{
+          const meta = await getErc20Meta(addr);
+          metas.set(addr.toLowerCase(), meta);
+        }));
+
+        // Asset Flow UI
+        const flowRows = [];
+        // native value row
+        flowRows.push(
+          `<div class="flow-row">
+             <div class="flow-addr text-xs">
+               ${hashLink('#/address/'+tx.from, tx.from, {className:'link mono clamp-xs'})}
+               <span class="text-gray-500">&nbsp;→&nbsp;</span>
+               ${hashLink('#/address/'+(tx.to||'0x'), (tx.to||'0x'), {className:'link mono clamp-xs'})}
+             </div>
+             <div class="flow-amt mono">${valueHuman} ${DISPLAY_DENOM}<span class="kpi-sub ml-1">(native)</span></div>
+           </div>`
+        );
+
+        for(const tr of transfers){
+          const m = metas.get(tr.token.toLowerCase()) || {symbol:'TKN',decimals:18};
+          const amt = formatUnitsBI(tr.value, m.decimals, 6);
+          flowRows.push(
+            `<div class="flow-row">
+               <div class="flow-addr text-xs">
+                 ${hashLink('#/address/'+tr.from, tr.from, {className:'link mono clamp-xs'})}
+                 <span class="text-gray-500">&nbsp;→&nbsp;</span>
+                 ${hashLink('#/address/'+tr.to, tr.to, {className:'link mono clamp-xs'})}
+               </div>
+               <div class="flow-amt mono">
+                 ${amt} <a class="link token" href="#/token/${tr.token}">${m.symbol || 'TKN'}</a>
+               </div>
+             </div>`
+          );
+        }
+
+        const tagEls = evmTxTags(tx, rc, transfers).map(t=>`<span class="chip">${t}</span>`).join(' ');
+
+        $('#txBody').innerHTML =
+          `<div class="grid md:grid-cols-2 gap-4">
+            <div>
+              <div class="kpi-label">Tx</div>
+              <div class="text-xs mono">Hash: ${hashLink('#/tx/evm/'+tx.hash, tx.hash, {className:'link mono clamp-xs'})}</div>
+              <div class="text-xs">Block: ${bn!==null?`<a class="link" href="#/block/${bn}">#${bn}</a>`:'pending'}</div>
+              <div class="text-xs">Time (UTC): ${ts}</div>
+              <div class="text-xs">From: ${hashLink('#/address/'+tx.from, tx.from, {className:'link mono clamp-xs'})}</div>
+              <div class="text-xs">To: ${hashLink('#/address/'+(tx.to||'0x'), (tx.to||'0x'), {className:'link mono clamp-xs'})}</div>
+              <div class="text-xs">Value: ${valueHuman} ${DISPLAY_DENOM}</div>
+              <div class="mt-3">
+                <div class="kpi-label">Tags</div>
+                <div class="flex flex-wrap gap-1 mt-1">${tagEls}</div>
+              </div>
+            </div>
+            <div>
+              <div class="kpi-label">Receipt</div>
+              <div class="text-xs">Status: ${(rc?.status==='0x1')?'Success':'Failed/—'}</div>
+              <div class="text-xs">Gas used: ${gasUsed.toLocaleString('en-US')}</div>
+              <div class="text-xs">Effective gas price (wei): ${effPrice.toString()}</div>
+              <div class="text-xs">Fee paid: ${gasHuman} ${DISPLAY_DENOM}</div>
+              <div class="text-xs">Logs: ${rc?.logs?.length||0}</div>
+            </div>
+          </div>
+
+          <div class="mt-4">
+            <h3 class="font-semibold mb-2">Asset Flow</h3>
+            <div class="flow">${flowRows.join('')}</div>
+          </div>`;
+      }catch(e){
+        $('#txBody').innerHTML = `<div class="text-sm text-red-600">${e.message||String(e)}</div>`;
+      }
+    }else{
+      try{
+        let j=null, ts='—', height='—';
+        try{ j = await jfetch(COSMOS_LCD+'/cosmos/tx/v1beta1/txs/'+hash, {}, 1); ts = j.tx_response?.timestamp ? toUTCCompact(j.tx_response.timestamp) : '—'; height = j.tx_response?.height || '—'; }
+        catch(_){ const j2 = await jfetch(TENDERMINT_RPC+'/tx?hash=0x'+hash+'&prove=false', {}, 1); height = j2?.result?.height || '—'; const blk = await jfetch(TENDERMINT_RPC+'/block?height='+height, {}, 1); ts = toUTCCompact(blk?.result?.block?.header?.time || ''); }
+
+        const msgs = (j?.tx?.body?.messages||[]).map(m => m['@type']||m.type_url||'').join(', ');
+        const feeStr = formatFeeCoins((j?.tx?.auth_info?.fee?.amount||[]));
+
+        // Participants + Asset Flow + Tags
+        const { flows, participants, tags } = cosmosExtractParticipantsAndFlows(j||{});
+        const flowRows = flows.map(f=>{
+          const left = f.from ? hashLink('#/address/'+f.from, f.from, {className:'link mono clamp-xs'}) : '—';
+          const right= f.to   ? hashLink('#/address/'+f.to,   f.to,   {className:'link mono clamp-xs'}) : '—';
+          const extra= f.extra? ` <span class="kpi-sub">${f.extra}</span>` : '';
+          return `<div class="flow-row">
+                   <div class="flow-addr text-xs">${left}<span class="text-gray-500">&nbsp;→&nbsp;</span>${right}</div>
+                   <div class="flow-amt mono">${f.amount} ${f.denom}${extra}</div>
+                 </div>`;
+        }).join('');
+
+        const chips = participants.map(a=>`<a class="chip mono" href="#/address/${a}">${shorten(a)}</a>`).join(' ');
+        const tagEls = (tags||[]).map(t=>`<span class="chip">${t}</span>`).join(' ');
+
+        $('#txBody').innerHTML =
+          `<div class="kpi-label">Cosmos Tx</div>
+           <div class="text-xs mono">Hash: ${hashLink('#/tx/cosmos/'+hash, hash, {className:'link mono clamp-xs'})}</div>
+           <div class="text-xs">Height: ${height}</div>
+           <div class="text-xs">Time (UTC): ${ts}</div>
+           <div class="text-xs">Msgs: ${msgs||'—'}</div>
+           <div class="text-xs">Fee: ${feeStr}</div>
+
+           <div class="mt-3">
+             <div class="kpi-label">Tags</div>
+             <div class="flex flex-wrap gap-1 mt-1">${tagEls}</div>
+           </div>
+
+           <div class="mt-4">
+             <h3 class="font-semibold mb-2">Participants</h3>
+             <div class="flex flex-wrap gap-1">${chips || '<span class="text-xs text-gray-500">—</span>'}</div>
+           </div>
+
+           <div class="mt-4">
+             <h3 class="font-semibold mb-2">Asset Flow</h3>
+             <div class="flow">${flowRows || '<div class="text-xs text-gray-500">—</div>'}</div>
+           </div>`;
+      }catch(e){
+        $('#txBody').innerHTML = `<div class="text-sm text-red-600">${e.message||String(e)}</div>`;
+      }
+    }
+  }
+
+  /* ===== TOKEN PAGE ===== */
+  async function renderTokenPage(tokenAddr){
+    $('#tokenTitle').textContent = 'Token '+shorten(tokenAddr, 10, 12);
+    $('#tokenMeta').innerHTML = 'Loading…';
+    $('#tokenNumbers').innerHTML = 'Loading…';
+    $('#tokenHoldersBody').innerHTML = '<tr><td colspan="3" class="text-gray-500">Loading…</td></tr>';
+
+    try{
+      const meta = await getErc20Meta(tokenAddr);
+      const supplyHuman = formatUnitsBI(meta.supply, meta.decimals, 6);
+      $('#tokenMeta').innerHTML =
+        `<div class="kpi-label">ERC‑20</div>
+         <div class="kpi-value">${meta.name} <span class="mono text-gray-600">(${meta.symbol})</span></div>
+         <div class="text-xs mono mt-1">Contract: ${hashLink('#/token/'+tokenAddr, tokenAddr, {className:'link mono clamp-xs'})}</div>
+         <div class="grid md:grid-cols-2 gap-3 mt-3 text-sm">
+           <div>Decimals: <span class="mono">${meta.decimals}</span></div>
+           <div>Total supply: <span class="mono">${supplyHuman} ${meta.symbol}</span></div>
+         </div>`;
+
+      // Holders discovery via logs (within cap), then live balanceOf
+      const head = hexI(await rpc('eth_blockNumber',[],1));
+      const from = Math.max(0, head - EVM_SCAN_CAP + 1);
+      const windowSize = 1000;
+      const addrs = new Set();
+
+      for(let start=from; start<=head; start+=windowSize){
+        const end = Math.min(head, start + windowSize - 1);
+        try{
+          const logs = await rpc('eth_getLogs', [{
+            address: tokenAddr,
+            fromBlock: '0x'+start.toString(16),
+            toBlock:   '0x'+end.toString(16),
+            topics: [ERC20_TOPICS.Transfer]
+          }], 1);
+          for(const l of (logs||[])){
+            if(l.topics && l.topics.length>=3){
+              addrs.add(topicAddress(l.topics[1]));
+              addrs.add(topicAddress(l.topics[2]));
+            }
+          }
+        }catch(_){ /* skip window on error */ }
+      }
+
+      const addresses = [...addrs].filter(a => /^0x[0-9a-fA-F]{40}$/.test(a)).slice(0, 400);
+      const balances = [];
+      const concurrency = 6;
+      let idx=0;
+      async function worker(){
+        while(idx<addresses.length){
+          const i = idx++;
+          const a = addresses[i];
+          try{
+            const arg = encAddress(a);
+            const res = await erc20Call(tokenAddr, ERC20_SIG.balanceOf, arg);
+            const bal = decodeUint(res);
+            if(bal>0n) balances.push({ addr:a, bal });
+          }catch(_){}
+        }
+      }
+      await Promise.allSettled(Array.from({length:concurrency}, worker));
+      balances.sort((x,y)=> (y.bal - x.bal));
+
+      $('#tokenNumbers').innerHTML =
+        `<div class="grid-auto">
+          <div class="card p-3">
+            <div class="kpi-label">Observed holders</div>
+            <div class="kpi-value">${fmt(balances.length,0)}</div>
+            <div class="kpi-sub">Within last ${EVM_SCAN_CAP.toLocaleString('en-US')} blocks</div>
+          </div>
+          <div class="card p-3">
+            <div class="kpi-label">Top holder balance</div>
+            <div class="kpi-value">${balances[0]? (formatUnitsBI(balances[0].bal, meta.decimals, 6)+' '+meta.symbol) : '—'}</div>
+            <div class="kpi-sub">Snapshot</div>
+          </div>
+          <div class="card p-3">
+            <div class="kpi-label">Contract</div>
+            <div class="kpi-value mono clamp-xs">${hashLink('#/token/'+tokenAddr, tokenAddr, {className:'link mono clamp-xs'})}</div>
+            <div class="kpi-sub">EVM address</div>
+          </div>
+        </div>`;
+
+      const body = $('#tokenHoldersBody');
+      if(balances.length===0){
+        body.innerHTML = '<tr><td colspan="3" class="text-gray-500">—</td></tr>';
+      }else{
+        body.innerHTML = balances.slice(0,100).map((row, i)=>{
+          const amt = formatUnitsBI(row.bal, meta.decimals, 6);
+          return `<tr>
+            <td class="text-gray-500">${i+1}</td>
+            <td>${hashLink('#/address/'+row.addr, row.addr, {className:'link mono clamp-xs'})}</td>
+            <td class="mono text-right">${amt} ${meta.symbol}</td>
+          </tr>`;
+        }).join('');
+      }
+    }catch(e){
+      $('#tokenMeta').innerHTML = `<div class="text-sm text-red-600">${e.message||String(e)}</div>`;
+      $('#tokenNumbers').innerHTML = '';
+      $('#tokenHoldersBody').innerHTML = '<tr><td colspan="3" class="text-gray-500">—</td></tr>';
+    }
+  }
+
+  /* ===== Address page ===== */
+  async function evmToBech32(addr0x){
+    const tries = [
+      `${COSMOS_LCD}/ethermint/evm/v1/cosmos_account/${addr0x}`,
+      `${COSMOS_LCD}/ethermint/evm/v1/accounts/${addr0x}`
+    ];
+    for(const url of tries){
+      try{
+        const j = await jfetch(url, {}, 1);
+        const bech = j?.cosmos_address || j?.account?.base_account?.address || j?.account?.address;
+        if(bech && bech.startsWith(BECH32_PREFIX)) return bech;
+      }catch(_){}
+    }
+    try{ return hexToBech32(BECH32_PREFIX, addr0x); }catch(_){ return null; }
+  }
+  async function renderAddressPage(addr){
+    $('#addrTitle').textContent = 'Address '+shorten(addr,14,12);
+    $('#addrIdentity').innerHTML = 'Loading…';
+    $('#addrBal').textContent='—'; $('#addrStaked').textContent='—'; $('#addrRewards').textContent='—';
+    $('#addrDelegationsBody').innerHTML = '<tr><td colspan="3" class="text-gray-500">Loading…</td></tr>';
+
+    try{
+      const isEvm = /^0x[0-9a-fA-F]{40}$/.test(addr);
+      const isValoper = addr.startsWith(VALOPER_PREFIX);
+      const isBech = addr.startsWith(BECH32_PREFIX) && !isValoper;
+
+      let bech = isBech ? addr : null;
+      let evmAddr = isEvm ? addr : null;
+      let evmFromBech = null;
+      if(isEvm && !bech){ bech = await evmToBech32(addr); }
+      if(isBech){ try{ evmFromBech = bech32ToHex(bech); }catch(_){ evmFromBech = null; } }
+
+      $('#addrIdentity').innerHTML =
+        `<div class="kpi-label">Identity</div>
+         <div class="text-xs">Input: <span class="mono">${hashLink('#/address/'+addr, addr, {className:'link mono clamp-xs'})}</span></div>
+         <div class="text-xs">Bech32: <span class="mono">${bech? hashLink('#/address/'+bech, bech, {className:'link mono clamp-xs'}) : '—'}</span></div>
+         <div class="text-xs">EVM: <span class="mono">${(evmAddr||evmFromBech)? hashLink('#/address/'+(evmAddr||evmFromBech), (evmAddr||evmFromBech), {className:'link mono clamp-xs'}) : '—'}</span></div>`;
+
+      if(evmAddr){
+        try{
+          const bal = await rpc('eth_getBalance',[evmAddr,'latest'],1);
+          const base = BigInt(bal||'0x0');
+          const human = formatUnitsBI(base, EVM_DECIMALS, 6);
+          $('#addrBal').textContent = human+' '+DISPLAY_DENOM;
+        }catch(_){}
+      }
+
+      if(isValoper){
+        $('#addrStaked').textContent = '—';
+        $('#addrRewards').textContent = '—';
+        $('#addrDelegationsBody').innerHTML = '<tr><td colspan="3" class="text-gray-500">N/A for validator operator</td></tr>';
+        $('#addrIdentity').innerHTML += `<div class="text-xs mt-2">This is a <strong>validator operator</strong> address. See full stats in the <a class="link" href="#/validator/${addr}">Validator page</a>.</div>`;
+        return;
+      }
+
+      if(bech){
+        try{
+          const acct = await jfetch(`${COSMOS_LCD}/cosmos/bank/v1beta1/balances/${bech}`, {}, 1);
+          const coins = (acct.balances||[]).filter(c=>isDenomBaseLike(c.denom));
+          let sum=0n; for(const c of coins){ try{ sum+=BigInt(String(c.amount||'0')); }catch(_){ } }
+          const v = Number(sum)/pow10(COSMOS_DECIMALS);
+          $('#addrBal').textContent = fmt(v,6)+' '+DISPLAY_DENOM;
+        }catch(_){}
+        let allDelegations=[], totalStaked=0n;
+        try{
+          let key=''; do{
+            const url = `${COSMOS_LCD}/cosmos/staking/v1beta1/delegations/${bech}?pagination.key=${key?encodeURIComponent(key):''}&pagination.limit=200`;
+            const j = await jfetch(url, {}, 1);
+            const arr = j.delegation_responses || [];
+            allDelegations.push(...arr);
+            for(const d of arr){ totalStaked += BigInt(d?.balance?.amount || '0'); }
+            key = j.pagination?.next_key || '';
+          }while(key);
+          $('#addrStaked').textContent = fmt(Number(totalStaked)/pow10(COSMOS_DECIMALS),6)+' '+DISPLAY_DENOM;
+        }catch(_){}
+        // rewards aggregate (single call)
+        let rewardMap = new Map();
+        try{
+          const rw = await jfetch(`${COSMOS_LCD}/cosmos/distribution/v1beta1/delegators/${bech}/rewards`, {}, 1);
+          const list = rw?.rewards || [];
+          for(const r of list){
+            const op = r?.validator_address;
+            let sum=0n;
+            for(const c of (r?.reward||[])){
+              if(isDenomBaseLike(c.denom) && c.amount) sum += parseDecToAtomics18(c.amount);
+            }
+            if(op && sum>0n){ rewardMap.set(op, Number(sum)/pow10(18+COSMOS_DECIMALS)); }
+          }
+          let totSum=0n;
+          for(const c of (rw?.total||[])){
+            if(isDenomBaseLike(c.denom) && c.amount) totSum += parseDecToAtomics18(c.amount);
+          }
+          if(totSum>0n){
+            const totalDec = Number(totSum)/pow10(18+COSMOS_DECIMALS);
+            $('#addrRewards').textContent = fmt(totalDec,6)+' '+DISPLAY_DENOM;
+          }
+        }catch(_){}
+
+        const valopers = [...new Set(allDelegations.map(d => d?.delegation?.validator_address).filter(Boolean))];
+        await ensureValMeta(valopers);
+
+        const tbody = $('#addrDelegationsBody');
+        if(allDelegations.length===0){ tbody.innerHTML = '<tr><td colspan="3" class="text-gray-500">—</td></tr>'; }
+        else{
+          tbody.innerHTML = allDelegations.map(d=>{
+            const op = d?.delegation?.validator_address;
+            const mon = valMoniker(op);
+            const stAmt = Number(BigInt(d?.balance?.amount||'0'))/pow10(COSMOS_DECIMALS);
+            const rew = (op && rewardMap.has(op)) ? rewardMap.get(op) : 0;
+            return `<tr>
+              <td><a class="link" href="#/validator/${op}">${mon}</a></td>
+              <td class="mono">${fmt(stAmt,6)} ${DISPLAY_DENOM}</td>
+              <td class="mono">${fmt(rew,6)} ${DISPLAY_DENOM}</td>
+            </tr>`;
+          }).join('');
+        }
+      }
+    }catch(e){
+      $('#addrIdentity').innerHTML = `<div class="text-sm text-red-600">${e.message||String(e)}</div>`;
+      $('#addrDelegationsBody').innerHTML = '<tr><td colspan="3" class="text-gray-500">—</td></tr>';
+    }
+  }
+
+  /* ===== Quick lookup ===== */
+  function doLookup(q){
+    const s=q.trim();
+    if(!s) return;
+    if(/^0x[0-9a-fA-F]{40}$/.test(s)){ location.hash = '#/address/'+s; return; }
+    if(s.startsWith(VALOPER_PREFIX)){ location.hash = '#/validator/'+s; return; }
+    if(s.startsWith(BECH32_PREFIX)){ location.hash = '#/address/'+s; return; }
+    if(/^0x[0-9a-fA-F]{64}$/.test(s)){ location.hash = '#/tx/evm/'+s; return; }
+    if(/^[0-9A-Fa-f]{64}$/.test(s)){ location.hash = '#/tx/cosmos/'+s; return; }
+    if(/^[0-9]+$/.test(s)){ location.hash = '#/block/'+s; return; }
+    alert('Unrecognized input.');
+  }
+
+  async function boot(){
+    if(location.protocol==='file:'){ logErr('CORS','Opened via file:// — nodes often block Origin:null. Serve via http://localhost.'); }
+    await checkConnections();
+    await detectDenomAndDecimals();
+    await buildPkInfo();
+    try{ const head = hexI(await rpc('eth_blockNumber',[],1)); STATE.lastHead = head - 10; }catch(_){}
+    await Promise.allSettled([loadStats(), refreshBlocks(), refreshUnifiedTxs()]);
+    route();
+  }
+
+  // top search
+  $('#topSearchBtn').addEventListener('click', ()=>doLookup($('#topSearch').value));
+  $('#topSearch').addEventListener('keydown', (e)=>{ if(e.key==='Enter') doLookup($('#topSearch').value); });
+
+  window.addEventListener('hashchange', route);
+  boot();
+  setInterval(()=>{ if(location.hash==='' || location.hash==='#/' ) refreshBlocks(); }, REFRESH_BLOCKS_MS);
+  setInterval(()=>{ if(location.hash==='' || location.hash==='#/' ) refreshUnifiedTxs(); }, REFRESH_TXS_MS);
+  setInterval(loadStats, REFRESH_STATS_MS);
+
+})();
+</script>
+<script>
+(function(){
+  // If this page is opened directly (not inside an iframe), do nothing.
+  if (window === window.parent) return;
+
+  function sendHeight(){
+    var doc  = document;
+    var body = doc.body;
+    var html = doc.documentElement;
+    if (!body || !html) return;
+
+    // Robust height calculation that works with most layouts
+    var height = Math.max(
+      body.scrollHeight,
+      body.offsetHeight,
+      html.clientHeight,
+      html.scrollHeight,
+      html.offsetHeight
+    );
+
+    // Tell the parent how tall we are
+    window.parent.postMessage(
+      {
+        type: 'gl1-iframe-resize',
+        height: height
+      },
+      '*' // safe here: only height is sent; parent filters by origin
+    );
+  }
+
+  // Initial + delayed measurements (fonts, charts, async data)
+  window.addEventListener('load', function(){
+    sendHeight();
+    setTimeout(sendHeight, 300);
+    setTimeout(sendHeight, 1000);
+  });
+
+  // Resize if viewport size changes inside the iframe
+  window.addEventListener('resize', function(){
+    sendHeight();
+  });
+
+  // If available, track layout changes (tables, accordions, etc.)
+  if ('ResizeObserver' in window){
+    var ro = new ResizeObserver(function(){
+      sendHeight();
+    });
+    ro.observe(document.body);
+  }
+})();
+</script>
+</body>
+</html>
