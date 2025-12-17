@@ -1,0 +1,2234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>GenesisL1 and L1coin Web3Desk</title>
+<meta name="color-scheme" content="light">
+<style>
+:root{
+  --bg:#f7f9fc;
+  --bg-2:#f1f6ff;
+  --glass:rgba(255,255,255,0.58);
+  --glass-strong:rgba(255,255,255,0.72);
+  --ink:#0a1428;
+  --muted:#5f6e88;
+  --line:rgba(10,20,40,0.08);
+  --primary:#4DA3FF;
+  --primary-600:#3A86FF;
+  --chart:rgba(77,163,255,0.95);
+  --chart-soft:rgba(77,163,255,0.35);
+  --good:#25a17c;
+  --warn:#f5a623;
+  --bad:#e15b64;
+  --r-sm:10px;
+  --r-md:14px;
+  --r-lg:22px;
+  --blur:14px;
+  --shadow:0 10px 30px rgba(20,50,120,0.12),inset 0 1px rgba(255,255,255,0.4);
+  --font-sans:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";
+  --fs-xs:12.75px;
+  --fs-sm:14.25px;
+  --fs-md:15.5px;
+  --fs-lg:18.5px;
+  --fs-xl:24px;
+  --fs-2xl:36px;
+  --ease:cubic-bezier(.2,.8,.2,1);
+  --elev:140%;
+  /* supply chart palette */
+  --seg-comm: var(--primary-600);
+  --seg-osmo:#8b5cf6;
+  --seg-staked:var(--good);
+  --seg-rewards:var(--warn);
+  --seg-rest:#cbd5f5;
+}
+html,body{
+  height:100%;
+  background:
+    radial-gradient(1200px 800px at 15% -10%,#eaf2ff 0%,transparent 60%),
+    radial-gradient(1200px 700px at 85% 10%,#edf5ff 0%,transparent 65%),
+    linear-gradient(#fbfdff,#f9fbff);
+  color:var(--ink);
+  font-family:var(--font-sans);
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+.bg-grid{
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  background:
+    linear-gradient(transparent 39px,rgba(13,31,68,0.06) 40px),
+    linear-gradient(90deg,transparent 39px,rgba(13,31,68,0.06) 40px);
+  background-size:40px 40px;
+  opacity:.25;
+  mask-image:radial-gradient(80% 60% at 50% 10%,#000 40%,transparent 90%);
+}
+.bg-glow{
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  background:
+    radial-gradient(800px 800px at 20% 10%,rgba(74,151,255,0.12),transparent 60%),
+    radial-gradient(600px 600px at 80% 5%,rgba(74,151,255,0.10),transparent 60%);
+}
+header.app{
+  position:sticky;
+  top:0;
+  z-index:50;
+  backdrop-filter:blur(var(--blur)) saturate(var(--elev));
+  -webkit-backdrop-filter:blur(var(--blur)) saturate(var(--elev));
+  background:linear-gradient(to bottom,var(--glass),transparent);
+  border-bottom:1px solid rgba(255,255,255,.6);
+}
+.head-inner{
+  position:relative;
+  display:flex;
+  gap:16px;
+  align-items:center;
+  justify-content:space-between;
+  max-width:var(--page-max);
+  margin:0 auto;
+  padding:16px clamp(16px,4vw,28px);
+}
+.brand{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  letter-spacing:.02em;
+  flex-shrink:0;
+}
+.logo{
+  width:36px;
+  height:36px;
+}
+.logo svg{stroke:var(--primary);}
+.brand-title{
+  font-weight:500;
+  font-size:20px;
+  letter-spacing:.08em;
+}
+.brand-sub{
+  font-size:var(--fs-xs);
+  color:var(--muted);
+  margin-top:2px;
+  font-size:21px;
+}
+.actions{
+  display:none;
+  gap:8px;
+  align-items:center;
+  flex-wrap:wrap;
+  flex-shrink:0;
+}
+.chip,.ghost,.primary,.pill{
+  border-radius:999px;
+  padding:10px 14px;
+  font-size:var(--fs-sm);
+  border:1px solid rgba(13,31,68,.08);
+  background:linear-gradient(180deg,var(--glass),rgba(255,255,255,.45));
+  backdrop-filter:blur(var(--blur));
+  -webkit-backdrop-filter:blur(var(--blur));
+  box-shadow:0 6px 18px rgba(20,50,120,.08),inset 0 1px rgba(255,255,255,.6);
+  cursor:pointer;
+  transition:transform .18s var(--ease),box-shadow .18s var(--ease);
+}
+.chip:hover,.ghost:hover,.primary:hover{
+  transform:translateY(-1px);
+  box-shadow:0 10px 26px rgba(20,50,120,.10);
+}
+.primary{
+  background:linear-gradient(180deg,#ffffff,#eef3ff);
+  border-color:rgba(74,151,255,.40);
+  color:var(--primary);
+  font-weight:600;
+}
+
+/* Mobile tabs toggle button (hamburger) */
+.tabs-toggle{
+  display:none;
+  border:none;
+  background:transparent;
+  padding:0;
+}
+
+/* Tabs now sit inline in the header row on desktop */
+nav.tabs{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  flex-wrap:nowrap;
+  margin:0 0 0 24px;
+  padding:0;
+  max-width:none;
+  flex:1 1 auto;
+  overflow-x:auto;
+  scrollbar-width:none; /* Firefox */
+}
+nav.tabs::-webkit-scrollbar{
+  display:none; /* WebKit */
+}
+.tab-btn{
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 14px;
+  border-radius:999px;
+  font-size:var(--fs-sm);
+  color:var(--muted);
+  border:1px solid var(--line);
+  background:linear-gradient(180deg,var(--glass),rgba(255,255,255,.4));
+  box-shadow:0 6px 18px rgba(20,50,120,.06),inset 0 1px rgba(255,255,255,.5);
+  cursor:pointer;
+  user-select:none;
+  transition:color .18s var(--ease),box-shadow .18s var(--ease),transform .18s var(--ease);
+  white-space:nowrap;
+}
+.tab-btn:hover{
+  color:var(--ink);
+  transform:translateY(-1px);
+}
+.tab-btn.active{
+  color:var(--primary);
+  border-color:rgba(74,151,255,.35);
+  box-shadow:0 12px 26px rgba(74,151,255,.12),inset 0 1px rgba(255,255,255,.75);
+}
+.tab-btn svg{
+  width:18px;
+  height:18px;
+  opacity:.9;
+}
+main{
+  max-width: 1600px;
+  margin:10px auto 80px;
+  padding:0 clamp(16px,4vw,28px);
+}
+section.tab{
+  display:none;
+  animation:fade .3s var(--ease);
+}
+section.tab.active{display:block;}
+@keyframes fade{
+  from{opacity:0;transform:translateY(6px);}
+  to{opacity:1;transform:translateY(0);}
+}
+.grid{display:grid;gap:14px;}
+.grid.cols-4{grid-template-columns:repeat(4,minmax(0,1fr));}
+.grid.cols-3{grid-template-columns:repeat(3,minmax(0,1fr));}
+.grid.cols-2{grid-template-columns:repeat(2,minmax(0,1fr));}
+@media (max-width:1000px){
+  .grid.cols-4{grid-template-columns:repeat(2,minmax(0,1fr));}
+}
+@media (max-width:640px){
+  .grid.cols-3,.grid.cols-2,.grid.cols-4{grid-template-columns:1fr;}
+}
+.card{
+  position:relative;
+  border-radius:var(--r-lg);
+  padding:16px;
+  border:1px solid rgba(13,31,68,.08);
+  background:linear-gradient(180deg,var(--glass-strong),rgba(255,255,255,.5));
+  backdrop-filter:blur(var(--blur));
+  -webkit-backdrop-filter:blur(var(--blur));
+  box-shadow:var(--shadow);
+  margin-top:15px;
+}
+.card h3{
+  font-size:20px;
+  font-weight:500;
+  color:#0f1c38;
+  letter-spacing:.02em;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin:12px 12px 0px;
+}
+.big{
+  font-size:clamp(28px,3.2vw,28px);
+  font-weight:500;
+  line-height:1.15;
+  letter-spacing:.005em;
+}
+.sub{
+  font-size:var(--fs-xs);
+  color:#5b6a84;
+}
+.mono{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;
+}
+.big,.mono,[data-count]{font-variant-numeric:tabular-nums lining-nums;}
+.table{
+  width:100%;
+  border-collapse:separate;
+  border-spacing:0 10px;
+  font-size:var(--fs-sm);
+}
+.table thead th{
+  text-align:left;
+  font-weight:700;
+  color:var(--muted);
+  padding:6px 10px;
+  letter-spacing:.01em;
+}
+.table tbody tr{
+  background:linear-gradient(180deg,#ffffff,rgba(255,255,255,.85));
+  box-shadow:0 6px 16px rgba(20,50,120,.06),inset 0 1px rgba(255,255,255,.6);
+  border:1px solid rgba(13,31,68,.08);
+}
+.table tbody td{
+  padding:12px 10px;
+  border-top:1px solid rgba(255,255,255,.6);
+}
+.link{
+  color:var(--primary);
+  text-decoration:none;
+}
+.link:hover{text-decoration:underline;}
+.chip-mini{
+  font-size:12px;
+  padding:6px 10px;
+  border-radius:999px;
+  border:1px solid rgba(13,31,68,.08);
+  background:linear-gradient(180deg,#fff,rgba(255,255,255,.7));
+}
+.status-dot{
+  width:10px;
+  height:10px;
+  border-radius:999px;
+  display:inline-block;
+  margin-right:8px;
+  background:#dbe3f2;
+}
+.kpi-label{
+  font-size:12.5px;
+  color:#6a7a95;
+  letter-spacing:.02em;
+}
+.kpi-value{
+  font-size:17px;
+  font-weight:650;
+  letter-spacing:.01em;
+}
+.kpi-sub{
+  font-size:12px;
+  color:#4b5563;
+}
+.clamp-xs{font-size:clamp(11px,2.7vw,14px);}
+.break-any{
+  overflow-wrap:anywhere;
+  word-break:break-all;
+}
+.dna-stream{
+  position:fixed;
+  right:10px;
+  top:120px;
+  bottom:20px;
+  width:160px;
+  pointer-events:none;
+  opacity:.18;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+  font-size:11px;
+  line-height:1.15;
+  color:var(--primary-600);
+  white-space:pre;
+  overflow:hidden;
+  mask-image:linear-gradient(to bottom,transparent,#000 12%,#000 88%,transparent);
+}
+.dna-stream .scroll{
+  animation:stream 22s linear infinite;
+}
+@media (prefers-reduced-motion:reduce){
+  .dna-stream .scroll{animation:none;}
+}
+@keyframes stream{
+  from{transform:translateY(0);}
+  to{transform:translateY(-50%);}
+}
+footer{
+  max-width:var(--page-max);
+  margin:32px auto;
+  padding:0 clamp(16px,4vw,28px);
+  color:var(--muted);
+  font-size:var(--fs-xs);
+}
+
+/* === Home tab enhanced KPI cards === */
+
+#tab-home .home-grid{
+  margin-top:18px;
+  display:flex;
+  flex-direction:column;
+  gap:16px;
+}
+
+#tab-home .home-panel{
+  border-radius:20px;
+  padding:20px 18px 18px;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  background:linear-gradient(145deg,rgba(255,255,255,0.97),rgba(238,244,255,0.94));
+  box-shadow:0 18px 35px rgba(20,50,120,0.14),inset 0 1px rgba(255,255,255,0.82);
+}
+
+#tab-home .home-panel-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+}
+
+#tab-home .home-panel-header h3{
+  font-size:var(--fs-lg);
+  letter-spacing:.10em;
+  text-transform:uppercase;
+  font-weight:500;
+  color:#0b1220;
+}
+
+#tab-home .home-pill-tag{
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.12em;
+  padding:5px 10px;
+  border-radius:999px;
+  border:1px solid rgba(74,151,255,0.22);
+  background:rgba(77,163,255,0.06);
+  color:var(--primary-600);
+  white-space:nowrap;
+  display:none;
+}
+
+#tab-home .home-panel-major{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+
+#tab-home .home-number{
+  font-size:clamp(24px,2.4vw,28px);
+  font-weight:500;
+  letter-spacing:.02em;
+  padding:10px;
+}
+
+#tab-home .home-subnumber{
+  font-size:clamp(16px,1.9vw,16px);
+  letter-spacing:.01em;
+  margin-top:5px;
+}
+
+#tab-home .home-panel .kpi-label{
+  font-size:12px;
+  font-weight:600;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:#6b7280;
+}
+
+#tab-home .home-panel .kpi-sub{
+  margin-top:2px;
+  font-size:14px;
+}
+
+#tab-home .home-panel-divider{
+  height:1px;
+  margin-top:4px;
+  background:linear-gradient(to right,rgba(13,31,68,0.03),rgba(13,31,68,0.18),rgba(13,31,68,0.03));
+}
+
+#tab-home .home-panel-footer{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:12px;
+}
+
+#tab-home .home-panel-footer.stacked{
+  flex-direction:column;
+  align-items:stretch;
+}
+
+#tab-home .home-row{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+
+#tab-home .home-row.two-cols{
+  flex-direction:row;
+  gap:12px;
+}
+
+#tab-home .home-row-label{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+}
+
+#tab-home .home-chip{
+  font-size:18px;
+  padding:4px 10px;
+  border-radius:999px;
+  background:rgba(15,23,42,0.03);
+  border:1px solid rgba(148,163,184,0.55);
+}
+
+#tab-home .home-chip strong{font-weight:600;}
+
+#tab-home .home-panel .kpi-sub#s_comm_pct,
+#tab-home .home-panel .kpi-sub#s_osmo_pct,
+#tab-home .home-panel .kpi-sub#s_rewards_pct,
+#tab-home .home-panel .kpi-sub#s_staked_total_pct{
+  color:#4b5563;
+}
+
+#tab-home .home-panel.home-network .home-panel-major{
+  gap:8px;
+}
+
+#tab-home .home-panel.home-network .home-panel-footer{
+  gap:14px;
+}
+
+#tab-home .home-panel.home-network #s_inflation{}
+
+#tab-home .home-panel.home-unstaking .home-number{
+  font-size:clamp(22px,2.1vw,26px);
+}
+
+@media (max-width:900px){
+  #tab-home .home-panel{
+    padding:18px 16px;
+  }
+  #tab-home .home-row.two-cols{
+    flex-direction:column;
+  }
+}
+
+/* Generic iframe containers for modular tabs */
+
+.iframe-shell{
+  margin-top:8px;
+  border-radius:var(--r-md);
+  overflow:hidden;
+  min-height:420px;
+}
+
+.iframe-shell iframe{
+  width:100%;
+  height:0;
+  border:0;
+  display:block;
+}
+
+/* Supply donut chart */
+
+.home-supply-chart .home-panel-header h3{
+  letter-spacing:.10em;
+}
+
+.supply-chart-shell{
+  margin-top:8px;
+  display:flex;
+  gap:18px;
+  align-items:stretch;
+}
+
+.supply-chart-visual{
+  position:relative;
+  flex:0 0 58%;
+  min-width:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.supply-chart-legend{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  justify-content:center;
+}
+
+.supply-chart-svg{
+  display:block;
+  width:100%;
+  max-width:230px;
+}
+
+.supply-chart-ring-bg{
+  fill:none;
+  stroke:rgba(148,163,184,0.28);
+  stroke-width:12;
+}
+
+.supply-chart-segment{
+  fill:none;
+  stroke-width:14;
+  stroke-linecap:round;
+  transform-origin:50% 50%;
+  cursor:pointer;
+  transition:stroke-dashoffset .45s var(--ease),stroke-width .18s var(--ease),transform .18s var(--ease),filter .18s var(--ease),opacity .14s var(--ease);
+}
+
+.supply-chart-segment.is-muted{
+  opacity:.27;
+}
+
+.supply-chart-segment.is-active{
+  stroke-width:18;
+  filter:drop-shadow(0 0 14px rgba(77,163,255,0.55));
+  transform:scale(1.04);
+}
+
+.supply-chart-center{
+  position:absolute;
+  inset:0;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  pointer-events:none;
+  text-align:center;
+  display:none;
+}
+
+.supply-chart-center-label{
+  font-size:11px;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:#6b7280;
+}
+
+.supply-chart-center-value{
+  margin-top:4px;
+  font-size:20px;
+  font-weight:500;
+  letter-spacing:.04em;
+}
+
+.supply-chart-center-sub{
+  margin-top:4px;
+  font-size:12px;
+  color:#4b5563;
+  display:block;
+}
+
+.supply-chart-item{
+  border-radius:999px;
+  border:1px solid rgba(148,163,184,0.4);
+  padding:8px 11px;
+  display:flex;
+  gap:10px;
+  align-items:center;
+  background:linear-gradient(180deg,#f9fbff,rgba(255,255,255,0.95));
+  box-shadow:0 8px 18px rgba(15,23,42,0.06),inset 0 1px rgba(255,255,255,0.8);
+  font-size:var(--fs-xs);
+  cursor:pointer;
+  transition:transform .16s var(--ease),box-shadow .16s var(--ease),border-color .16s var(--ease),background .16s var(--ease),opacity .14s var(--ease);
+}
+
+.supply-chart-item:hover{
+  transform:translateY(-1px);
+  box-shadow:0 14px 26px rgba(15,23,42,0.08);
+}
+
+.supply-chart-item.is-active{
+  border-color:rgba(77,163,255,0.55);
+  box-shadow:0 14px 32px rgba(77,163,255,0.22);
+  background:linear-gradient(145deg,rgba(255,255,255,0.98),rgba(226,239,255,0.96));
+}
+
+.supply-chart-item.is-muted{
+  opacity:.65;
+}
+
+.supply-chart-swatch{
+  width:16px;
+  height:16px;
+  border-radius:999px;
+  flex-shrink:0;
+  box-shadow:0 0 0 1px rgba(255,255,255,0.75),0 0 0 4px rgba(15,23,42,0.06);
+}
+
+.supply-chart-item-main{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:2px;
+}
+
+.supply-chart-item-label{
+  font-weight:600;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  color:#0f172a;
+}
+
+.supply-chart-item-sub{
+  font-size:14px;
+  color:#4b5563;
+}
+
+.supply-chart-item-sub .mono{
+  font-size:14px;
+}
+
+.supply-chart-empty{
+  font-size:12px;
+  color:#6b7280;
+}
+
+@media (max-width:900px){
+  .supply-chart-shell{
+    flex-direction:column;
+  }
+  .supply-chart-visual{
+    flex:0 0 auto;
+  }
+  .supply-chart-legend{
+    flex:0 0 auto;
+  }
+}
+
+/* ECharts container sizing for supply chart */
+#supplyChart{
+  position:relative;
+  width:100%;
+  max-width:360px;
+  aspect-ratio:1/1;
+}
+.supply-chart-echart{
+  width:100%;
+  height:100%;
+}
+
+/* === MOBILE HEADER / MENU BEHAVIOUR === */
+@media (max-width:768px){
+  .head-inner{
+    gap:10px;
+  }
+
+  /* Show hamburger, hide horizontal scroll behavior for tabs */
+  .tabs-toggle{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:40px;
+    height:40px;
+    margin-left:4px;
+    border-radius:999px;
+    border:1px solid var(--line);
+    background:linear-gradient(180deg,var(--glass),rgba(255,255,255,.7));
+    box-shadow:0 6px 18px rgba(20,50,120,.06),inset 0 1px rgba(255,255,255,.5);
+    cursor:pointer;
+  }
+  .tabs-toggle span{
+    display:block;
+    width:18px;
+    height:2px;
+    border-radius:999px;
+    background:var(--ink);
+    opacity:.85;
+  }
+  .tabs-toggle span+span{
+    margin-top:3px;
+  }
+
+  /* Tabs become a dropdown under the header */
+  nav.tabs{
+    position:absolute;
+    left:0;
+    right:0;
+    top:100%;
+    margin:0;
+    padding:8px clamp(16px,4vw,28px) 12px;
+    background:linear-gradient(180deg,var(--glass-strong),rgba(255,255,255,0.98));
+    border-bottom:1px solid rgba(13,31,68,0.08);
+    box-shadow:0 18px 40px rgba(15,23,42,0.18);
+    flex-wrap:wrap;
+    justify-content:flex-start;
+    gap:8px;
+    overflow-x:hidden;
+    overflow-y:auto;
+    max-height:0;
+    opacity:0;
+    pointer-events:none;
+    transform-origin:top;
+    transform:scaleY(0.96);
+    transition:max-height .22s var(--ease),opacity .18s var(--ease),transform .18s var(--ease);
+    z-index:40;
+  }
+  nav.tabs.is-open{
+    max-height:260px;
+    opacity:1;
+    pointer-events:auto;
+    transform:scaleY(1);
+  }
+
+  /* Tabs layout as a 2-column-ish grid in dropdown */
+  .tab-btn{
+    flex:1 1 calc(50% - 8px);
+    justify-content:flex-start;
+  }
+
+  /* Actions can wrap nicely */
+  .actions{
+    justify-content:flex-end;
+    max-width:40%;
+  }
+}
+</style>
+</head>
+<body>
+<div class="bg-grid" aria-hidden="true"></div>
+<div class="bg-glow" aria-hidden="true"></div>
+
+<aside class="dna-stream" aria-hidden="true">
+  <div class="scroll" id="dnaText"></div>
+  <div class="scroll" id="dnaText2" style="transform:translateY(100%);"></div>
+</aside>
+
+<header class="app" role="banner">
+  <div class="head-inner">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">
+        <img class="logo" src="/logo.svg">
+      </div>
+      <div>
+        <div class="brand-title">GenesisL1</div>
+      </div>
+    </div>
+
+    <!-- Mobile-only toggle for tabs -->
+    <button class="tabs-toggle" type="button" aria-expanded="false" aria-label="Toggle navigation">
+      <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round" fill="none">
+        <line x1="3" y1="6" x2="21" y2="6"/>
+        <line x1="3" y1="12" x2="21" y2="12"/>
+        <line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
+
+    <nav class="tabs" role="tablist" aria-label="Primary">
+      <button class="tab-btn active" role="tab" aria-selected="true" aria-controls="tab-home" data-tab="home">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path stroke-width="1.8" d="M3 11l9-7 9 7v9a1.5 1.5 0 0 1-1.5 1.5h-5A1.5 1.5 0 0 1 13 19v-4H11v4a1.5 1.5 0 0 1-1.5 1.5h-5A1.5 1.5 0 0 1 3 20z"/>
+        </svg>
+        Home
+      </button>
+      <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-staking" data-tab="staking">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="12" cy="12" r="8" stroke-width="1.8"/>
+          <path d="M12 8v8M8 12h8" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+        Staking
+      </button>
+      <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-ibc" data-tab="ibc">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M7 7h10v10H7z" stroke-width="1.8"/>
+          <path d="M3 12h4M17 12h4" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+        IBC
+      </button>
+      <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-governance" data-tab="governance">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M4 20h16M6 17V7a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v10" stroke-width="1.8"/>
+          <path d="M9 13h6" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+        Governance
+      </button>
+      <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-explorer" data-tab="explorer">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="12" cy="12" r="9" stroke-width="1.8"/>
+          <path d="M9 9l6-2-2 6-6 2 2-6z" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Explorer
+      </button>
+      <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-distribution" data-tab="distribution">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+    <!-- Pie chart style icon -->
+    <circle cx="12" cy="12" r="8" stroke-width="1.8"/>
+    <!-- Slice -->
+    <path d="M12 4v8l6 3" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+  L1 distribution
+</button>
+    </nav>
+
+    <div class="actions">
+      <span class="chip-mini" id="rpcBadge">EVM RPC: …</span>
+      <span class="chip-mini" id="lcdBadge">LCD: …</span>
+      <span class="chip-mini" id="tmBadge">Tendermint: …</span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- HOME TAB: metrics and stats preserved -->
+  <section id="tab-home" class="tab active" role="tabpanel" aria-labelledby="home">
+    <section class="grid cols-4 home-grid">
+      <!-- Network -->
+      <article class="card home-panel home-network">
+        <div class="home-panel-header">
+          <h3>GenesisL1 Ledger</h3>
+          <span class="home-pill-tag">Live</span>
+        </div>
+        <div class="home-panel-major">
+          <div>
+            <div class="kpi-label">Latest Block</div>
+            <div class="home-number mono" id="d_latest_block">—</div>
+          </div>
+          <div>
+            <div class="kpi-sub mono" id="d_last_time">—</div>
+            <div class="kpi-sub mono" id="d_avg_time">—</div>
+          </div>
+        </div>
+        <div class="home-panel-divider"></div>
+        <div class="home-panel-footer">
+          <div>
+            <div class="kpi-label">Validators</div>
+            <div class="home-subnumber mono" id="d_active_validators">—</div>
+          </div>
+          <div>
+            <div class="kpi-label">Stakers</div>
+            <div class="home-subnumber mono" id="d_total_stakers">—</div>
+          </div>
+          <div>
+            <div class="kpi-label">Inflation</div>
+            <div class="home-subnumber mono" id="s_inflation">—</div>
+          </div>
+
+          <div>
+            <div class="kpi-label">Price</div>
+            <div class="home-subnumber mono" id="s_l1_price">—</div>
+          </div>
+          <div>
+            <div class="kpi-label">Marketcap</div>
+            <div class="home-subnumber mono" id="s_l1_marketcap">—</div>
+          </div>
+        </div>
+      </article>
+
+      <!-- Supply Breakdown Chart -->
+      <article class="card home-panel home-supply-chart">
+        <div class="home-panel-header">
+          <h3>L1 coin supply</h3>
+          <span class="home-pill-tag">Interactive</span>
+        </div>
+        <div class="supply-chart-shell">
+          <div class="supply-chart-visual">
+            <div id="supplyChart" aria-label="Supply breakdown chart"></div>
+          </div>
+          <div class="supply-chart-legend" id="supplyChartLegend" aria-label="Supply breakdown legend"></div>
+        </div>
+      </article>
+
+      <!-- Staking (now includes Unstaking content) -->
+      <article class="card home-panel home-staking">
+        <div class="home-panel-header">
+          <h3>L1 coin Staking</h3>
+        </div>
+        <div class="home-panel-major">
+          <div class="home-row">
+            <div class="home-row-label">
+              <span class="kpi-label">Total Staked</span>
+              <span class="home-chip mono" id="s_staked_total">—</span>
+            </div>
+            <div class="kpi-sub mono" id="s_staked_total_pct">—% of supply</div>
+          </div>
+        </div>
+        <div class="home-panel-divider"></div>
+        <div class="home-panel-footer stacked">
+          <div class="home-row">
+            <div class="home-row-label">
+              <span class="kpi-label">Staked — Active</span>
+              <span class="home-chip mono" id="s_staked_active">—</span>
+            </div>
+            <div class="kpi-sub mono" id="s_staked_active_pct">—% of supply</div>
+          </div>
+          <div class="home-row">
+            <div class="home-row-label">
+              <span class="kpi-label">Staked — Jailed</span>
+              <span class="home-chip mono" id="s_staked_jailed">—</span>
+            </div>
+            <div class="kpi-sub mono" id="s_staked_jailed_pct">—% of supply</div>
+          </div>
+          <div class="home-row">
+            <div class="home-row-label">
+              <span class="kpi-label">Unclaimed Rewards</span>
+              <span class="home-chip mono" id="s_rewards">—</span>
+            </div>
+            <div class="kpi-sub mono" id="s_rewards_pct">—% of supply</div>
+          </div>
+          <div class="home-panel-divider"></div>
+          <div class="home-row">
+            <div class="home-row-label">
+              <span class="kpi-label">Unstaking time</span>
+              <span class="home-chip mono" id="s_unstaking">—</span>
+            </div>
+            <div class="kpi-sub mono" id="s_rewards_pct">From staking params
+</div>
+          </div>
+
+          <div class="home-row">
+            <div class="home-row-label">
+              <span class="kpi-label">Unbonding (chain-wide)</span>
+              <span class="home-chip mono" id="s_unbonding">—</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- Unstaking card removed -->
+    </section>
+  </section>
+
+  <!-- STAKING TAB: simple iframe container -->
+  <section id="tab-staking" class="tab" role="tabpanel" aria-labelledby="staking">
+    <article class="card">
+      <h3>L1 coin staking</h3>
+      <div class="iframe-shell" id="staking-frame">
+        <!-- staking iframe will be injected lazily on first Staking tab activation -->
+      </div>
+    </article>
+  </section>
+
+  <!-- IBC TAB: simple iframe container -->
+  <section id="tab-ibc" class="tab" role="tabpanel" aria-labelledby="ibc">
+    <article class="card">
+      <h3>L1 coin IBC</h3>
+      <div class="iframe-shell" id="ibc-frame">
+        <!-- IBC iframe will be injected lazily on first IBC tab activation -->
+      </div>
+    </article>
+  </section>
+
+  <!-- GOVERNANCE TAB: simple iframe container -->
+  <section id="tab-governance" class="tab" role="tabpanel" aria-labelledby="governance">
+    <article class="card">
+      <h3>GenesisL1 Governance</h3>
+      <div class="iframe-shell" id="governance-frame">
+        <!-- Governance iframe will be injected lazily on first Governance tab activation -->
+      </div>
+    </article>
+  </section>
+
+  <!-- EXPLORER TAB: simple iframe container -->
+  <section id="tab-explorer" class="tab" role="tabpanel" aria-labelledby="explorer">
+    <article class="card">
+      <h3>GenesisL1 Web3 Explorer</h3>
+      <div class="iframe-shell" id="explorer-frame">
+        <!-- Explorer iframe will be injected lazily on first Explorer tab activation -->
+      </div>
+    </article>
+  </section>
+<!-- L1 DISTRIBUTION TAB: simple iframe container -->
+<section id="tab-distribution" class="tab" role="tabpanel" aria-labelledby="distribution">
+  <article class="card">
+    <h3>L1 distribution</h3>
+    <div class="iframe-shell" id="distribution-frame">
+      <!-- Distribution iframe will be injected lazily on first Distribution tab activation -->
+    </div>
+  </article>
+</section>
+
+
+</main>
+
+<footer>
+GenesisL1 and L1coin Web3Desk
+</footer>
+
+<!-- UI behavior: tabs, radial, DNA effect -->
+<script>
+(function(){
+  const prefersReduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // === Deep-link support (serverless, hash-based) ===
+  //   home.html#/explorer/validator/<valoper>
+  //   → Explorer tab + iframe explorer.html#/validator/<valoper>
+  let initialExplorerHash = '';
+  let forceExplorerTab = false;
+
+  (function computeInitialExplorerHashFromHash(){
+    const raw = window.location.hash.replace(/^#/, ''); // strip "#"
+    const parts = raw.split('/').filter(Boolean);       // ['explorer','validator','...']
+    if (parts[0] === 'explorer') {
+      forceExplorerTab = true;
+      if (parts.length > 1) {
+        initialExplorerHash = '#/' + parts.slice(1).join('/');
+      }
+    }
+  })();
+
+  // === Auto-resize embedded GenesisL1 iframes ===
+  window.addEventListener('message', function(event){
+    const data = event.data || {};
+    if (data.type !== 'gl1-iframe-resize') return;
+
+    const allowedOrigins = [
+      'https://l1coin.com',
+      'http://localhost:4173',
+      'http://localhost:5173'
+    ];
+    if (allowedOrigins.indexOf(event.origin) === -1) return;
+
+    var newHeight = parseInt(data.height, 10);
+    if (!newHeight || newHeight < 0) return;
+
+    var frames = document.querySelectorAll('.iframe-shell iframe');
+    frames.forEach(function(frame){
+      try{
+        if (frame.contentWindow === event.source){
+          var minHeight = 420;
+          frame.style.height = Math.max(minHeight, newHeight) + 'px';
+        }
+      }catch(e){}
+    });
+  });
+
+  const tabButtons=document.querySelectorAll('.tab-btn');
+  const tabPanels=document.querySelectorAll('section.tab');
+
+  const stakingFrameShell=document.getElementById('staking-frame');
+  let stakingFrameLoaded=false;
+  function ensureStakingIframe(){
+    if(stakingFrameLoaded || !stakingFrameShell) return;
+    const iframe=document.createElement('iframe');
+    iframe.src='https://l1coin.com/staking.html';
+    iframe.loading='lazy';
+    iframe.title='GenesisL1 Staking';
+    stakingFrameShell.appendChild(iframe);
+    stakingFrameLoaded=true;
+  }
+
+  const governanceFrameShell=document.getElementById('governance-frame');
+  let governanceFrameLoaded=false;
+  function ensureGovernanceIframe(){
+    if(governanceFrameLoaded || !governanceFrameShell) return;
+    const iframe=document.createElement('iframe');
+    iframe.src='https://l1coin.com/gov.html';
+    iframe.loading='lazy';
+    iframe.title='GenesisL1 Governance';
+    governanceFrameShell.appendChild(iframe);
+    governanceFrameLoaded=true;
+  }
+
+  const ibcFrameShell=document.getElementById('ibc-frame');
+  let ibcFrameLoaded=false;
+  function ensureIbcIframe(){
+    if(ibcFrameLoaded || !ibcFrameShell) return;
+    const iframe=document.createElement('iframe');
+    iframe.src='https://l1coin.com/ibc.html';
+    iframe.loading='lazy';
+    iframe.title='GenesisL1 IBC';
+    ibcFrameShell.appendChild(iframe);
+    ibcFrameLoaded=true;
+  }
+
+ // Lazy-load L1 Distribution iframe
+  const distributionFrameShell = document.getElementById('distribution-frame');
+  let distributionFrameLoaded = false;
+  function ensureDistributionIframe(){
+    if (distributionFrameLoaded || !distributionFrameShell) return;
+    const iframe = document.createElement('iframe');
+    iframe.src = 'https://l1coin.com/distribution.html';
+    iframe.loading = 'lazy';
+    iframe.title = 'L1 distribution';
+    distributionFrameShell.appendChild(iframe);
+    distributionFrameLoaded = true;
+  }
+
+  // Explorer iframe + hash sync (child → parent only)
+  const explorerFrameShell=document.getElementById('explorer-frame');
+  let explorerFrameLoaded=false;
+  let explorerFrame=null;
+  let explorerHashSyncInterval=null;
+
+  function startExplorerHashSync(){
+    if(!explorerFrame || explorerHashSyncInterval) return;
+    let lastHash='';
+    explorerHashSyncInterval=setInterval(function(){
+      try{
+        const childWin=explorerFrame.contentWindow;
+        if(!childWin) return;
+        const childHash=childWin.location.hash || '';
+        if(childHash!==lastHash){
+          lastHash=childHash;
+          if(childHash && window.location.hash !== childHash){
+            window.location.hash = childHash;
+          }
+        }
+      }catch(e){
+        clearInterval(explorerHashSyncInterval);
+        explorerHashSyncInterval=null;
+      }
+    },300);
+  }
+
+  function ensureExplorerIframe(){
+    if(explorerFrameLoaded || !explorerFrameShell) return;
+    const iframe=document.createElement('iframe');
+    const base='https://l1coin.com/explorer.html';
+    iframe.src = initialExplorerHash ? (base + initialExplorerHash) : base;
+    iframe.loading='lazy';
+    iframe.title='GenesisL1 Explorer';
+    explorerFrameShell.appendChild(iframe);
+    explorerFrameLoaded=true;
+    explorerFrame=iframe;
+    startExplorerHashSync();
+  }
+
+  function activateTab(id){
+    tabButtons.forEach(btn=>{
+      const active=btn.dataset.tab===id;
+      btn.classList.toggle('active',active);
+      btn.setAttribute('aria-selected',String(active));
+    });
+    tabPanels.forEach(p=>{
+      p.classList.toggle('active',p.id==='tab-'+id);
+    });
+
+    if(id==='home' && typeof window.gl1ResizeSupplyChart === 'function'){
+      requestAnimationFrame(function(){
+        window.gl1ResizeSupplyChart();
+      });
+    }
+
+    if(id==='staking'){
+      ensureStakingIframe();
+    }else if(id==='governance'){
+      ensureGovernanceIframe();
+    }else if(id==='ibc'){
+      ensureIbcIframe();
+    }else if(id==='explorer'){
+      ensureExplorerIframe();
+    }else if(id==='distribution'){
+      ensureDistributionIframe();
+    }
+
+    try{localStorage.setItem('acii.activeTab',id);}catch(e){}
+  }
+
+  tabButtons.forEach(btn=>btn.addEventListener('click',()=>activateTab(btn.dataset.tab)));
+
+  // Initial tab: explorer if hash says so, otherwise last saved tab
+  if (forceExplorerTab) {
+    activateTab('explorer');
+  } else {
+    try{
+      const saved=localStorage.getItem('acii.activeTab');
+      if(saved&&document.querySelector('#tab-'+saved)){
+        activateTab(saved);
+      }else{
+        activateTab('home');
+      }
+    }catch(e){
+      activateTab('home');
+    }
+  }
+
+  const tabsNav=document.querySelector('nav.tabs');
+  const tabsToggle=document.querySelector('.tabs-toggle');
+  if(tabsNav && tabsToggle){
+    tabsToggle.addEventListener('click',()=>{
+      const open=tabsNav.classList.toggle('is-open');
+      tabsToggle.setAttribute('aria-expanded',open ? 'true' : 'false');
+    });
+
+    tabButtons.forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        if(tabsNav.classList.contains('is-open')){
+          tabsNav.classList.remove('is-open');
+          tabsToggle.setAttribute('aria-expanded','false');
+        }
+      });
+    });
+  }
+
+  function countUp(el){
+    const from=Number(el.dataset.from||0);
+    const to=Number(el.dataset.to||0);
+    const dur=Number(el.dataset.duration||1200);
+    const start=performance.now();
+    const format=n=>n.toLocaleString(undefined,{maximumFractionDigits:2});
+    if(prefersReduced){el.textContent=format(to);return;}
+    function frame(now){
+      const t=Math.min(1,(now-start)/dur);
+      const eased=1-Math.pow(1-t,3);
+      el.textContent=format(from+(to-from)*eased);
+      if(t<1)requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  document.querySelectorAll('[data-count]').forEach(countUp);
+
+  document.querySelectorAll('[data-radial]').forEach(el=>{
+    const v=Math.max(0,Math.min(100,Number(el.dataset.radial)));
+    el.style.setProperty('--p',v+'%');
+    const span=el.querySelector('span');
+    if(span&&!span.textContent.trim())span.textContent=v+'%';
+  });
+
+  function makeDNACols(rows=60,cols=16){
+    const letters=['A','C','G','T'];
+    let out='';
+    for(let r=0;r<rows;r++){
+      let line='';
+      for(let c=0;c<cols;c++)line+=letters[(r+c)%4]+' ';
+      out+=line.trimEnd()+'\n';
+    }
+    return out;
+  }
+  const dna1=document.getElementById('dnaText');
+  const dna2=document.getElementById('dnaText2');
+  if(dna1&&dna2){
+    const block=makeDNACols(120,16);
+    dna1.textContent=block;
+    dna2.textContent=block;
+  }
+})();
+</script>
+
+<!-- ECharts -->
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+
+<!-- Data layer: stats + Osmosis price/marketcap (unchanged from your working version, with total stakers added) -->
+<script>
+(function(){
+  'use strict';
+
+  const EVM_RPC='https://rpc.genesisl1.org';
+  const COSMOS_LCD='https://1317.genesisl1.org';
+  const TENDERMINT_RPC='https://26657.genesisl1.org';
+  const OSMOSIS_LCD='https://rest.cosmos.directory/osmosis';
+  const L1_IBC_DENOM='ibc/F16FDC11A7662B86BC0B9CE61871CBACF7C20606F95E86260FD38915184B75B4';
+
+  const EVM_DECIMALS=18;
+  let COSMOS_DECIMALS=18;
+  let BASE_DENOM='ul1';
+  const DISPLAY_DENOM='L1';
+
+  const REFRESH_STATS_MS=60000;
+  const HTTP_TIMEOUT_MS=12000;
+  const RETRIES_PRIMARY=1;
+  const BACKOFF_START_MS=800;
+  let ENABLE_OSMOSIS_SCAN=true;
+
+  let supplyChartInstance=null;
+  const SUPPLY_COLORS={
+    staked:'#10B981',
+    rewards:'#F97316',
+    comm:'#3B82F6',
+    osmo:'#8B5CF6',
+    rest:'#A5B4FC'
+  };
+
+  const $=s=>document.querySelector(s);
+  const fmt=(n,d=2)=>Number(n).toLocaleString('en-US',{maximumFractionDigits:d});
+  const pow10=p=>{let x=1;for(let i=0;i<p;i++)x*=10;return x;};
+  const bigPow10=p=>BigInt('1'+'0'.repeat(p));
+
+  function toUTCCompact(isoOrDate){
+    if(!isoOrDate)return'—';
+    const d=(isoOrDate instanceof Date)?isoOrDate:new Date(isoOrDate);
+    if(isNaN(d.getTime()))return'—';
+    const pad=n=>String(n).padStart(2,'0');
+    return d.getUTCFullYear()+'-'+pad(d.getUTCMonth()+1)+'-'+pad(d.getUTCDate())+' '+pad(d.getUTCHours())+':'+pad(d.getUTCMinutes())+':'+pad(d.getUTCSeconds())+' UTC';
+  }
+
+  const parseDecToAtomics18=decStr=>{
+    const s=String(decStr||'0');
+    const i=s.indexOf('.');
+    if(i<0)return BigInt((s||'0'))*bigPow10(18);
+    const whole=s.slice(0,i)||'0';
+    const frac=s.slice(i+1).padEnd(18,'0').slice(0,18);
+    return BigInt((whole+frac).replace(/^0+/,'')||'0');
+  };
+
+  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+  async function jfetch(url,opts={},retries=RETRIES_PRIMARY,backoffMs=BACKOFF_START_MS){
+    const ctrl=new AbortController();
+    const t=setTimeout(()=>ctrl.abort(),opts.timeout||HTTP_TIMEOUT_MS);
+    try{
+      const res=await fetch(url,{...opts,signal:ctrl.signal});
+      if(!res.ok)throw new Error('HTTP '+res.status+' @ '+url);
+      return await res.json();
+    }catch(e){
+      if(retries>0){
+        await sleep(backoffMs);
+        return jfetch(url,opts,retries-1,backoffMs*1.8);
+      }
+      console.error('fetch error',url,e);
+      throw e;
+    }finally{
+      clearTimeout(t);
+    }
+  }
+
+  async function rpc(method,params=[],retries=RETRIES_PRIMARY,backoffMs=BACKOFF_START_MS){
+    const payload={jsonrpc:'2.0',id:1,method,params};
+    const ctrl=new AbortController();
+    const t=setTimeout(()=>ctrl.abort(),HTTP_TIMEOUT_MS);
+    try{
+      const res=await fetch(EVM_RPC,{
+        method:'POST',
+        headers:{'content-type':'application/json'},
+        body:JSON.stringify(payload),
+        signal:ctrl.signal
+      });
+      if(!res.ok)throw new Error('RPC '+method+' HTTP '+res.status);
+      const j=await res.json();
+      if(j.error)throw new Error(j.error.message||'RPC error');
+      return j.result;
+    }catch(e){
+      if(retries>0){
+        await sleep(backoffMs);
+        return rpc(method,params,retries-1,backoffMs*1.8);
+      }
+      console.error('rpc error',method,e);
+      throw e;
+    }finally{
+      clearTimeout(t);
+    }
+  }
+
+  const normDenom=d=>String(d||'').trim().toLowerCase();
+  function isDenomBaseLike(d){
+    const dn=normDenom(d);
+    if(!dn)return false;
+    const base=normDenom(BASE_DENOM||'ul1');
+    if(dn===base)return true;
+    const disp=normDenom(DISPLAY_DENOM);
+    if(dn===disp)return true;
+    if(dn==='u'+disp)return true;
+    if(dn==='el1')return true;
+    return false;
+  }
+
+  function toDisplayFromBaseInt(amountIntStr){
+    try{
+      const bi=BigInt(String(amountIntStr||'0'));
+      return fmt(Number(bi)/pow10(COSMOS_DECIMALS),6);
+    }catch(_){
+      return String(amountIntStr||'0');
+    }
+  }
+
+  function humanUnbondingTime(s){
+    if(!s)return'—';
+    const m=String(s).match(/^(\d+)s$/);
+    if(!m)return s;
+    const sec=parseInt(m[1],10)||0;
+    const days=Math.floor(sec/86400);
+    const rem=sec%86400;
+    const hrs=Math.floor(rem/3600);
+    const mins=Math.floor((rem%3600)/60);
+    if(days>0)return`${days} day${days>1?'s':''} ${hrs}h`;
+    if(hrs>0)return`${hrs}h ${mins}m`;
+    return`${mins}m`;
+  }
+
+  /* === Total stakers (same logic as staking page) === */
+
+  async function fetchDelegatorCountForStakers(valoper){
+    try{
+      const url=COSMOS_LCD+'/cosmos/staking/v1beta1/validators/'+valoper+'/delegations?pagination.limit=1&pagination.count_total=true';
+      const j=await jfetch(url,{},1);
+      const total=j?.pagination?.total ?? j?.pagination?.total_count ?? '0';
+      const n=Number(total||0);
+      return Number.isFinite(n)?n:null;
+    }catch(_){
+      return null;
+    }
+  }
+
+  async function fetchPageActiveForStakers(nextKey){
+    let url=COSMOS_LCD+'/cosmos/staking/v1beta1/validators?status=BOND_STATUS_BONDED&pagination.limit=50';
+    if(nextKey){
+      url+='&pagination.key='+encodeURIComponent(nextKey);
+    }
+    const j=await jfetch(url,{},1);
+    return {
+      list:(j.validators||[]).filter(v=>!v.jailed),
+      next:j.pagination?.next_key || null
+    };
+  }
+
+  async function fetchPageAllForStakers(nextKey){
+    let url=COSMOS_LCD+'/cosmos/staking/v1beta1/validators?pagination.limit=100';
+    if(nextKey){
+      url+='&pagination.key='+encodeURIComponent(nextKey);
+    }
+    const j=await jfetch(url,{},1);
+    return {
+      list:(j.validators||[]),
+      next:j.pagination?.next_key || null
+    };
+  }
+
+  async function getActiveValidatorsForStakers(){
+    const validatorsActive=[];
+    try{
+      let next=null;
+      do{
+        const page=await fetchPageActiveForStakers(next);
+        if(page.list && page.list.length){
+          validatorsActive.push.apply(validatorsActive,page.list);
+        }
+        next=page.next;
+      }while(next);
+    }catch(e){
+      console.warn('Active validators failed for staker count, fallback:',e);
+    }
+    if(!validatorsActive.length){
+      try{
+        let next=null;
+        do{
+          const page=await fetchPageAllForStakers(next);
+          const filtered=(page.list||[]).filter(v=>!v.jailed && (v.status==='BOND_STATUS_BONDED' || !v.status));
+          if(filtered.length){
+            validatorsActive.push.apply(validatorsActive,filtered);
+          }
+          next=page.next;
+        }while(next);
+      }catch(e){
+        console.error('Active validators fallback for staker count failed:',e);
+      }
+    }
+    return validatorsActive;
+  }
+
+  async function getJailedValidatorsForStakers(){
+    const validatorsJailed=[];
+    try{
+      let next=null;
+      do{
+        const page=await fetchPageAllForStakers(next);
+        const filtered=(page.list||[]).filter(v=>v.jailed);
+        if(filtered.length){
+          validatorsJailed.push.apply(validatorsJailed,filtered);
+        }
+        next=page.next;
+      }while(next);
+    }catch(e){
+      console.error('Jailed validators for staker count failed:',e);
+    }
+    return validatorsJailed;
+  }
+
+  async function computeAndRenderTotalStakers(){
+    try{
+      const [activeVals,jailedVals]=await Promise.all([
+        getActiveValidatorsForStakers(),
+        getJailedValidatorsForStakers()
+      ]);
+
+      async function accumulate(list){
+        if(!list || !list.length)return 0;
+        let subtotal=0;
+        let i=0;
+        const workerCount=Math.min(6,list.length);
+        const tasks=[];
+        const run=async function(){
+          while(true){
+            const idx=i++;
+            if(idx>=list.length)return;
+            const v=list[idx];
+            const n=await fetchDelegatorCountForStakers(v.operator_address);
+            if(typeof n==='number' && n>0){
+              subtotal+=n;
+            }
+          }
+        };
+        for(let w=0;w<workerCount;w++){
+          tasks.push(run());
+        }
+        await Promise.allSettled(tasks);
+        return subtotal;
+      }
+
+      const [stActive,stJailed]=await Promise.all([
+        accumulate(activeVals),
+        accumulate(jailedVals)
+      ]);
+
+      const total=stActive+stJailed;
+      const el=$('#d_total_stakers');
+      if(el){
+        el.textContent=fmt(total,0);
+      }
+    }catch(e){
+      console.error('Total stakers computation failed',e);
+    }
+  }
+
+  /* === ECharts full-pie supply chart === */
+
+  function renderSupplyChart(raw){
+    try{
+      const root=document.getElementById('supplyChart');
+      const legend=document.getElementById('supplyChartLegend');
+      if(!root||!legend)return;
+
+      if(typeof echarts==='undefined'){
+        root.innerHTML='<div class="supply-chart-empty">Chart library unavailable</div>';
+        legend.innerHTML='';
+        return;
+      }
+
+      const supply=Number(raw&&raw.supply||0);
+
+      let comm=Number(raw&&raw.comm||0);
+      let osmo=Number(raw&&raw.osmo||0);
+      let staked=Number(raw&&raw.staked||0);
+      let rewards=Number(raw&&raw.rewards||0);
+
+      const clean=v=>(!isFinite(v)||v<0)?0:v;
+      comm=clean(comm);
+      osmo=clean(osmo);
+      staked=clean(staked);
+      rewards=clean(rewards);
+
+      let rest=0;
+      if(supply>0){
+        let used=comm+osmo+staked+rewards;
+        if(used> supply && used>0){
+          const scale=supply/used;
+          comm*=scale;
+          osmo*=scale;
+          staked*=scale;
+          rewards*=scale;
+          used=supply;
+        }
+        rest=Math.max(0,supply-used);
+      }
+
+      const entries=[
+        {key:'staked',label:'Total Staked',amount:staked,color:SUPPLY_COLORS.staked},
+        {key:'rewards',label:'Unclaimed Rewards',amount:rewards,color:SUPPLY_COLORS.rewards},
+        {key:'comm',label:'Community Pool',amount:comm,color:SUPPLY_COLORS.comm},
+        {key:'osmo',label:'On Osmosis',amount:osmo,color:SUPPLY_COLORS.osmo},
+        {key:'rest',label:'Non-staked Circulation',amount:rest,color:SUPPLY_COLORS.rest}
+      ].map(e=>({...e,amount:clean(e.amount)}));
+
+      const total=entries.reduce((sum,e)=>sum+e.amount,0);
+      root.innerHTML='';
+      legend.innerHTML='';
+
+      if(!total){
+        root.innerHTML='<div class="supply-chart-empty">Waiting for supply breakdown…</div>';
+        return;
+      }
+
+      const chartBox=document.createElement('div');
+      chartBox.className='supply-chart-echart';
+      const centerBox=document.createElement('div');
+      centerBox.className='supply-chart-center';
+
+      const centerLabel=document.createElement('div');
+      centerLabel.className='supply-chart-center-label';
+
+      const centerValue=document.createElement('div');
+      centerValue.className='supply-chart-center-value mono';
+      const centerSub=document.createElement('div');
+      centerSub.className='supply-chart-center-sub';
+
+      if(supply>0){
+        centerValue.textContent=fmt(supply,2)+' '+DISPLAY_DENOM;
+      }else{
+        centerValue.textContent='—';
+        centerSub.textContent='Waiting for data';
+      }
+
+      centerBox.appendChild(centerLabel);
+      centerBox.appendChild(centerValue);
+      centerBox.appendChild(centerSub);
+
+      root.appendChild(chartBox);
+      root.appendChild(centerBox);
+
+      if(supplyChartInstance){
+        supplyChartInstance.dispose();
+        supplyChartInstance=null;
+      }
+      supplyChartInstance=echarts.init(chartBox);
+
+      const seriesData=entries.map(e=>({
+        value:e.amount,
+        name:e.label,
+        itemStyle:{
+          color:e.color,
+          borderColor:'#f9fbff',
+          borderWidth:2
+        }
+      }));
+
+      const option={
+        tooltip:{
+          trigger:'item',
+          formatter:function(params){
+            const val=params.value||0;
+            const pct=supply>0?val/supply*100:(params.percent||0);
+            return params.name+'<br/>'+
+              fmt(val,2)+' '+DISPLAY_DENOM+
+              (supply>0?' ('+pct.toFixed(2)+'% of supply)':'');
+          }
+        },
+        series:[{
+          name:'Supply',
+          type:'pie',
+          radius:['0%','75%'],
+          center:['50%','50%'],
+          avoidLabelOverlap:true,
+          label:{show:false},
+          labelLine:{show:false},
+          itemStyle:{
+            shadowBlur:8,
+            shadowColor:'rgba(15,23,42,0.20)'
+          },
+          emphasis:{
+            scale:true,
+            scaleSize:8,
+            itemStyle:{
+              shadowBlur:18,
+              shadowColor:'rgba(148,163,255,0.70)'
+            }
+          },
+          data:seriesData
+        }]
+      };
+
+      supplyChartInstance.setOption(option);
+
+      let legendTotalItem=null;
+      const legendSegmentItems=[];
+
+      // 100% circulation supply legend
+      const totalBtn=document.createElement('button');
+      totalBtn.type='button';
+      totalBtn.className='supply-chart-item';
+      totalBtn.dataset.total='true';
+
+      const totalSw=document.createElement('span');
+      totalSw.className='supply-chart-swatch';
+      totalSw.style.background=SUPPLY_COLORS.rest;
+
+      const totalMain=document.createElement('span');
+      totalMain.className='supply-chart-item-main';
+
+      const totalLabelEl=document.createElement('span');
+      totalLabelEl.className='supply-chart-item-label';
+      totalLabelEl.textContent='100% Circulation Supply';
+
+      const totalSub=document.createElement('span');
+      totalSub.className='supply-chart-item-sub';
+
+      const totalAmountEl=document.createElement('span');
+      totalAmountEl.className='mono';
+      if(supply>0){
+        totalAmountEl.textContent=fmt(supply,2)+' '+DISPLAY_DENOM;
+      }else{
+        totalAmountEl.textContent='—';
+      }
+
+      const totalDot=document.createElement('span');
+      totalDot.textContent=' • ';
+
+      const totalPctEl=document.createElement('span');
+      totalPctEl.className='mono';
+      totalPctEl.textContent=supply>0?'100% of supply':'—';
+
+      totalSub.appendChild(totalAmountEl);
+      totalSub.appendChild(totalDot);
+      totalSub.appendChild(totalPctEl);
+
+      totalMain.appendChild(totalLabelEl);
+      totalMain.appendChild(totalSub);
+
+      totalBtn.appendChild(totalSw);
+      totalBtn.appendChild(totalMain);
+      legend.appendChild(totalBtn);
+      legendTotalItem=totalBtn;
+      legendTotalItem.classList.add('is-muted');
+
+      entries.forEach((entry,idx)=>{
+        const btn=document.createElement('button');
+        btn.type='button';
+        btn.className='supply-chart-item';
+        btn.dataset.index=String(idx);
+
+        const sw=document.createElement('span');
+        sw.className='supply-chart-swatch';
+        sw.style.background=entry.color;
+
+        const main=document.createElement('span');
+        main.className='supply-chart-item-main';
+
+        const labelEl=document.createElement('span');
+        labelEl.className='supply-chart-item-label';
+        labelEl.textContent=entry.label;
+
+        const sub=document.createElement('span');
+        sub.className='supply-chart-item-sub';
+
+        const amountEl=document.createElement('span');
+        amountEl.className='mono';
+        amountEl.textContent=fmt(entry.amount,2)+' '+DISPLAY_DENOM;
+
+        const dot=document.createElement('span');
+        dot.textContent=' • ';
+
+        const pctSupply=supply>0?entry.amount/supply*100:0;
+        const pctEl=document.createElement('span');
+        pctEl.className='mono';
+        pctEl.textContent=supply>0?pctSupply.toFixed(2)+'% of supply':'—';
+
+        sub.appendChild(amountEl);
+        sub.appendChild(dot);
+        sub.appendChild(pctEl);
+
+        main.appendChild(labelEl);
+        main.appendChild(sub);
+
+        btn.appendChild(sw);
+        btn.appendChild(main);
+        legend.appendChild(btn);
+        legendSegmentItems.push(btn);
+      });
+
+      function highlightSegment(index){
+        if(supplyChartInstance){
+          supplyChartInstance.dispatchAction({type:'downplay',seriesIndex:0});
+          supplyChartInstance.dispatchAction({type:'highlight',seriesIndex:0,dataIndex:index});
+        }
+      }
+
+      function highlightAllSegments(){
+        if(supplyChartInstance){
+          supplyChartInstance.dispatchAction({type:'downplay',seriesIndex:0});
+          entries.forEach((_,idx)=>{
+            supplyChartInstance.dispatchAction({type:'highlight',seriesIndex:0,dataIndex:idx});
+          });
+        }
+      }
+
+      function select(index){
+        if(legendTotalItem){
+          legendTotalItem.classList.remove('is-active');
+          legendTotalItem.classList.add('is-muted');
+        }
+        legendSegmentItems.forEach((btn,i)=>{
+          const active=i===index;
+          btn.classList.toggle('is-active',active);
+          btn.classList.toggle('is-muted',!active);
+        });
+        highlightSegment(index);
+      }
+
+      function selectTotal(){
+        if(legendTotalItem){
+          legendTotalItem.classList.add('is-active');
+          legendTotalItem.classList.remove('is-muted');
+        }
+        legendSegmentItems.forEach(btn=>{
+          btn.classList.remove('is-active');
+          btn.classList.add('is-muted');
+        });
+        highlightAllSegments();
+      }
+
+      const preferredIndex=entries.reduce((best,e,idx)=>{
+        if(e.amount>entries[best].amount)return idx;
+        return best;
+      },0);
+      select(preferredIndex);
+
+      if(legendTotalItem){
+        legendTotalItem.addEventListener('mouseenter',selectTotal);
+        legendTotalItem.addEventListener('click',selectTotal);
+      }
+
+      legendSegmentItems.forEach(btn=>{
+        const idx=Number(btn.dataset.index);
+        btn.addEventListener('mouseenter',()=>select(idx));
+        btn.addEventListener('click',()=>select(idx));
+      });
+
+      supplyChartInstance.on('mouseover',function(params){
+        if(params.componentType==='series'&&params.seriesType==='pie'){
+          select(params.dataIndex);
+        }
+      });
+    }catch(e){
+      console.error('renderSupplyChart error',e);
+    }
+  }
+
+  async function checkConnections(){
+    try{
+      await rpc('eth_blockNumber');
+      $('#rpcBadge').textContent='EVM RPC: connected';
+    }catch(_){
+      $('#rpcBadge').textContent='EVM RPC: error';
+    }
+    try{
+      await jfetch(COSMOS_LCD+'/cosmos/base/tendermint/v1beta1/node_info');
+      $('#lcdBadge').textContent='LCD: connected';
+    }catch(_){
+      $('#lcdBadge').textContent='LCD: error';
+    }
+    try{
+      await jfetch(TENDERMINT_RPC+'/status');
+      $('#tmBadge').textContent='Tendermint: connected';
+    }catch(_){
+      $('#tmBadge').textContent='Tendermint: error';
+    }
+  }
+
+  async function detectDenomAndDecimals(){
+    try{
+      const mint=await jfetch(COSMOS_LCD+'/cosmos/mint/v1beta1/params');
+      if(mint?.params?.mint_denom)BASE_DENOM=mint.params.mint_denom;
+    }catch(_){}
+    try{
+      const stk=await jfetch(COSMOS_LCD+'/cosmos/staking/v1beta1/params');
+      if(stk?.params?.bond_denom)BASE_DENOM=stk.params.bond_denom;
+    }catch(_){}
+    try{
+      let key='';
+      let found=null;
+      do{
+        const res=await jfetch(COSMOS_LCD+'/cosmos/bank/v1beta1/denoms_metadata?pagination.key='+(key?encodeURIComponent(key):'')+'&pagination.limit=200');
+        const list=res?.metadatas||[];
+        if(!found){
+          found=list.find(m=>m.base===BASE_DENOM)||list.find(m=>(m.display||'').toLowerCase()==='l1');
+        }
+        key=res?.pagination?.next_key||'';
+      }while(!found&&key);
+      const du=(found?.denom_units||[]).find(u=>(u.denom||'').toLowerCase()===(found?.display||'l1').toLowerCase());
+      if(du&&typeof du.exponent==='number')COSMOS_DECIMALS=du.exponent;
+    }catch(_){}
+  }
+
+  async function loadStats(){
+    // values for chart (L1)
+    let supply=0;
+    let comm=0;
+    let osmo=0;
+    let stakedTotal=0;
+    let rewards=0;
+
+    // Latest block & timing
+    try{
+      const status=await jfetch(TENDERMINT_RPC+'/status',{},1);
+      const h=parseInt(status?.result?.sync_info?.latest_block_height||status?.sync_info?.latest_block_height||'0',10)||0;
+      if(h>0){
+        $('#d_latest_block').textContent=h.toLocaleString('en-US');
+
+        const b1=await jfetch(TENDERMINT_RPC+'/block?height='+h,{},1);
+        const t1iso=b1?.result?.block?.header?.time||'';
+        $('#d_last_time').textContent='Last block time: '+(t1iso?toUTCCompact(t1iso):'—');
+
+        const t1=new Date(t1iso||0).getTime();
+        const h2=Math.max(1,h-100);
+        const b2=await jfetch(TENDERMINT_RPC+'/block?height='+h2,{},1);
+        const t2=new Date(b2?.result?.block?.header?.time||0).getTime();
+        if(t1&&t2){
+          const avg=(t1-t2)/(h-h2+0.00001);
+          $('#d_avg_time').textContent=(avg/1000).toFixed(2)+'s avg block time (100-blk window)';
+        }
+      }
+    }catch(_){}
+
+    // Total supply
+    let supplyAmt='0';
+    try{
+      const sup=await jfetch(COSMOS_LCD+'/cosmos/bank/v1beta1/supply/by_denom?denom='+encodeURIComponent(BASE_DENOM),{},1);
+      supplyAmt=(sup?.amount?.amount??sup?.amount??'0');
+    }catch(_){
+      try{
+        const supAll=await jfetch(COSMOS_LCD+'/cosmos/bank/v1beta1/supply?pagination.limit=100000',{},1);
+        const hit=(supAll.supply||[]).find(c=>isDenomBaseLike(c.denom));
+        supplyAmt=hit?.amount||'0';
+      }catch(_){}
+    }
+    supply=Number(BigInt(String(supplyAmt||'0')))/pow10(COSMOS_DECIMALS);
+    const sSupplyEl=$('#s_supply');
+    if(sSupplyEl)sSupplyEl.textContent=fmt(supply,2)+' '+DISPLAY_DENOM;
+
+    // Staking params / unbonding time
+    try{
+      const sp=await jfetch(COSMOS_LCD+'/cosmos/staking/v1beta1/params',{},1);
+      const ub=sp?.params?.unbonding_time;
+      $('#s_unstaking').textContent=humanUnbondingTime(ub);
+      if(sp?.params?.bond_denom)BASE_DENOM=sp.params.bond_denom;
+    }catch(_){}
+
+    // Inflation
+    let inflPct=null;
+    try{
+      const infl=await jfetch(COSMOS_LCD+'/cosmos/mint/v1beta1/inflation',{},1);
+      const v=infl?.inflation;
+      const f=(typeof v==='number')?v:parseFloat(v||'0');
+      if(isFinite(f)&&f>0)inflPct=f*100;
+    }catch(_){}
+    if(inflPct===null){
+      try{
+        const ap=await jfetch(COSMOS_LCD+'/cosmos/mint/v1beta1/annual_provisions',{},1);
+        const apDec=parseDecToAtomics18(ap?.annual_provisions||'0');
+        const apHuman=Number(apDec)/pow10(18+COSMOS_DECIMALS);
+        if(supply>0)inflPct=(apHuman/supply)*100;
+      }catch(_){}
+    }
+    $('#s_inflation').textContent=inflPct!==null?(Math.round(inflPct)+'%'):'—';
+
+    // Community pool
+    let commDec=0n;
+    try{
+      const cp=await jfetch(COSMOS_LCD+'/cosmos/distribution/v1beta1/community_pool',{},1);
+      const coins=cp.community_pool||cp.pool||(cp.pool&&cp.pool.pool)||[];
+      for(const coin of (Array.isArray(coins)?coins:[])){
+        if(isDenomBaseLike(coin.denom)&&coin.amount)commDec+=parseDecToAtomics18(coin.amount);
+      }
+    }catch(_){}
+    comm=Number(commDec)/pow10(18+COSMOS_DECIMALS);
+    const sCommEl=$('#s_comm');
+    if(sCommEl)sCommEl.textContent=fmt(comm,2)+' '+DISPLAY_DENOM;
+    const sCommPctEl=$('#s_comm_pct');
+    if(sCommPctEl)sCommPctEl.textContent=supply>0?Math.round((comm/supply)*100)+'% of supply':'—';
+
+    // Staking totals + active validators
+    let activeTok=0n,jailedTok=0n,valActive=0;
+    try{
+      let key='';
+      do{
+        const vj=await jfetch(COSMOS_LCD+'/cosmos/staking/v1beta1/validators?status=BOND_STATUS_BONDED&pagination.key='+(key?encodeURIComponent(key):'')+'&pagination.limit=200',{},1);
+        for(const v of (vj.validators||[])){
+          const t=BigInt(v.tokens||'0');
+          if(v.jailed){
+            jailedTok+=t;
+          }else{
+            activeTok+=t;
+            valActive++;
+          }
+        }
+        key=vj.pagination?.next_key||'';
+      }while(key);
+
+      for(const st of ['BOND_STATUS_UNBONDING','BOND_STATUS_UNBONDED']){
+        let k='';
+        do{
+          const j=await jfetch(COSMOS_LCD+'/cosmos/staking/v1beta1/validators?status='+st+'&pagination.key='+(k?encodeURIComponent(k):'')+'&pagination.limit=200',{},1);
+          for(const v of (j.validators||[])){
+            if(v.jailed)jailedTok+=BigInt(v.tokens||'0');
+          }
+          k=j.pagination?.next_key||'';
+        }while(k);
+      }
+    }catch(_){}
+    const active=Number(activeTok)/pow10(COSMOS_DECIMALS);
+    const jailed=Number(jailedTok)/pow10(COSMOS_DECIMALS);
+    stakedTotal=active+jailed;
+
+    $('#s_staked_total').textContent=fmt(stakedTotal,2)+' '+DISPLAY_DENOM;
+    $('#s_staked_total_pct').textContent=supply>0?Math.round((stakedTotal/supply)*100)+'% of supply':'—';
+    $('#s_staked_active').textContent=fmt(active,2)+' '+DISPLAY_DENOM;
+    $('#s_staked_active_pct').textContent=supply>0?Math.round((active/supply)*100)+'% of supply':'—';
+    $('#s_staked_jailed').textContent=fmt(jailed,2)+' '+DISPLAY_DENOM;
+    $('#s_staked_jailed_pct').textContent=supply>0?Math.round((jailed/supply)*100)+'% of supply':'—';
+    $('#d_active_validators').textContent=fmt(valActive,0);
+
+    // Total stakers (chain-wide, active + jailed)
+    await computeAndRenderTotalStakers();
+
+    // Unclaimed rewards (chain-wide)
+    try{
+      let key='';
+      const opers=[];
+      do{
+        const vj=await jfetch(COSMOS_LCD+'/cosmos/staking/v1beta1/validators?status=BOND_STATUS_BONDED&pagination.key='+(key?encodeURIComponent(key):'')+'&pagination.limit=200',{},1);
+        for(const v of (vj.validators||[]))opers.push(v.operator_address);
+        key=vj.pagination?.next_key||'';
+      }while(key);
+
+      let totalDec=0n;
+      const reqs=await Promise.allSettled(
+        opers.map(op=>jfetch(COSMOS_LCD+'/cosmos/distribution/v1beta1/validators/'+op+'/outstanding_rewards',{},1))
+      );
+      for(const r of reqs){
+        if(r.status==='fulfilled'){
+          const coins=r.value?.rewards?.rewards||r.value?.rewards||[];
+          for(const m of (coins||[])){
+            if(isDenomBaseLike(m.denom)&&m.amount)totalDec+=parseDecToAtomics18(m.amount);
+          }
+        }
+      }
+      rewards=Number(totalDec)/pow10(18+COSMOS_DECIMALS);
+      $('#s_rewards').textContent=fmt(rewards,2)+' '+DISPLAY_DENOM;
+      $('#s_rewards_pct').textContent=supply>0?Math.round((rewards/supply)*100)+'% of supply':'—';
+    }catch(_){}
+
+    // Chain-wide unbonding
+    try{
+      let key='';
+      const opers=[];
+      do{
+        const vj=await jfetch(COSMOS_LCD+'/cosmos/staking/v1beta1/validators?status=BOND_STATUS_BONDED&pagination.key='+(key?encodeURIComponent(key):'')+'&pagination.limit=200',{},1);
+        for(const v of (vj.validators||[]))opers.push(v.operator_address);
+        key=vj.pagination?.next_key||'';
+      }while(key);
+
+      let ubSum=0n;
+      const uReqs=await Promise.allSettled(
+        opers.map(op=>jfetch(COSMOS_LCD+'/cosmos/staking/v1beta1/validators/'+op+'/unbonding_delegations?pagination.limit=200',{},1))
+      );
+      for(const u of uReqs){
+        if(u.status==='fulfilled'){
+          for(const resp of (u.value?.unbonding_responses||[])){
+            for(const e of (resp.entries||[]))ubSum+=BigInt(e.balance||'0');
+          }
+        }
+      }
+      $('#s_unbonding').textContent=fmt(Number(ubSum)/pow10(COSMOS_DECIMALS),2)+' '+DISPLAY_DENOM;
+    }catch(_){}
+
+    // Supply on Osmosis
+    if(ENABLE_OSMOSIS_SCAN){
+      try{
+        const known=[
+          L1_IBC_DENOM,
+          'ibc/DABCB5B2232B630C196330AC2A8010C9DBDE8B783FDFF3FB105540939BE27775'
+        ];
+        let totalOs=0n;
+        for(const kd of known){
+          try{
+            const os=await jfetch(OSMOSIS_LCD+'/cosmos/bank/v1beta1/supply/by_denom?denom='+encodeURIComponent(kd),{},1);
+            totalOs+=BigInt(String(os?.amount?.amount??os?.amount??'0'));
+          }catch(_){}
+        }
+        if(totalOs===0n){
+          const j=await jfetch(OSMOSIS_LCD+'/ibc/apps/transfer/v1/denom_traces?pagination.limit=200',{},1);
+          const traces=j?.denom_traces||[];
+          let tries=0;
+          for(const t of traces){
+            if((t?.base_denom||'')!==BASE_DENOM||!t?.path)continue;
+            try{
+              const enc=new TextEncoder();
+              const buf=await crypto.subtle.digest('SHA-256',enc.encode(t.path+'/'+t.base_denom));
+              const bytes=new Uint8Array(buf);
+              let hex='';
+              for(const b of bytes){
+                const v=b.toString(16);
+                hex+=v.length===1?'0'+v:v;
+              }
+              const denom='ibc/'+hex.toUpperCase();
+              const os=await jfetch(OSMOSIS_LCD+'/cosmos/bank/v1beta1/supply/by_denom?denom='+encodeURIComponent(denom),{},1);
+              totalOs+=BigInt(String(os?.amount?.amount??os?.amount??'0'));
+              tries++;
+              if(tries>=2)break;
+            }catch(_){}
+          }
+        }
+        osmo=Number(totalOs)/pow10(COSMOS_DECIMALS);
+        const sOsmoEl=$('#s_osmo');
+        if(sOsmoEl)sOsmoEl.textContent=fmt(osmo,2)+' '+DISPLAY_DENOM;
+        const sOsmoPctEl=$('#s_osmo_pct');
+        if(sOsmoPctEl)sOsmoPctEl.textContent=supply>0?Math.round((osmo/supply)*100)+'% of supply':'—';
+      }catch(e){
+        console.error('osmosis scan error',e);
+        const sOsmoEl=$('#s_osmo');
+        if(sOsmoEl)sOsmoEl.textContent='—';
+        const sOsmoPctEl=$('#s_osmo_pct');
+        if(sOsmoPctEl)sOsmoPctEl.textContent='—';
+      }
+    }else{
+      const sOsmoEl=$('#s_osmo');
+      if(sOsmoEl)sOsmoEl.textContent='—';
+      const sOsmoPctEl=$('#s_osmo_pct');
+      if(sOsmoPctEl)sOsmoPctEl.textContent='—';
+    }
+
+    // L1 coin price from Osmosis SQS + marketcap
+    let l1PriceUSD=null;
+    if(ENABLE_OSMOSIS_SCAN){
+      try{
+        const url='https://sqs.osmosis.zone/tokens/prices?base='+encodeURIComponent(L1_IBC_DENOM);
+        const res=await fetch(url);
+        if(!res.ok){
+          throw new Error('HTTP '+res.status);
+        }
+        const data=await res.json();
+        const quotes=data && data[L1_IBC_DENOM];
+        if(quotes && Object.keys(quotes).length>0){
+          const quoteDenom=Object.keys(quotes)[0];
+          const price=Number(quotes[quoteDenom]);
+          if(isFinite(price)&&price>0){
+            l1PriceUSD=price;
+          }
+        }
+      }catch(e){
+        console.error('L1 price fetch error',e);
+      }
+    }
+
+    const priceEl = $('#s_l1_price');
+    if(priceEl){
+      priceEl.textContent = l1PriceUSD != null
+        ? ('$' + l1PriceUSD.toFixed(3))
+        : '—';
+    }
+
+    const mcapEl=$('#s_l1_marketcap');
+    if(mcapEl){
+      if(l1PriceUSD!=null && supply>0){
+        const mc=supply*l1PriceUSD;
+        mcapEl.textContent='$'+fmt(mc,0);
+      }else{
+        mcapEl.textContent='—';
+      }
+    }
+
+    // finally update interactive 100%-of-supply pie
+    renderSupplyChart({supply,comm,osmo,staked:stakedTotal,rewards});
+  }
+
+  async function boot(){
+    if(location.protocol==='file:'){
+      console.warn('Opened via file:// — nodes may block CORS. Prefer http://localhost.');
+    }
+    await detectDenomAndDecimals();
+    await checkConnections();
+    await loadStats();
+  }
+
+  // Helper to safely resize the supply chart
+  function resizeSupplyChart(){
+    if(supplyChartInstance){
+      try{
+        supplyChartInstance.resize();
+      }catch(e){
+        console.error('supplyChart resize error', e);
+      }
+    }
+  }
+
+  // Expose to the tab/UI script
+  window.gl1ResizeSupplyChart = resizeSupplyChart;
+
+  // Also keep it responsive on real window resizes
+  window.addEventListener('resize', resizeSupplyChart);
+
+  boot();
+  setInterval(loadStats,REFRESH_STATS_MS);
+})();
+</script>
+</body>
+</html>
