@@ -1,0 +1,1468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>GenesisL1 — Staking & Wallet (Stateless)</title>
+
+<!-- Tailwind (MIT) -->
+<script src="https://cdn.tailwindcss.com"></script>
+
+<style>
+  /* ========= Explorer-inspired theme ========= */
+  :root{
+    --ink:#0f172a; --muted:#64748b; --ring:#e5e7eb; --card:#ffffff; --bg:#ffffff;
+    --info:#2563eb; --soft:#f8fafc;
+  }
+  html,body{height:100%}
+  
+  .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;}
+  .card{border-radius: 14px; background:var(--card); border:1px solid var(--ring);}
+  .heading{border-bottom:1px solid var(--ring); background:#fff}
+  .pill{font-size:.78rem;border:1px solid var(--ring);border-radius:9999px;padding:.25rem .6rem;background:#f8fafc;display:inline-flex;align-items:center;gap:.4rem}
+  .btnx{ background:#fff; color:#0c1017; border:1px solid var(--ring); border-radius:10px; padding:.55rem .9rem; font:inherit; cursor:pointer }
+  .btnx.primary {
+    background:#e8f0fe;
+    border-color:#d2e3fc;
+    color:#174ea6;
+    box-shadow:0 1px 2px rgba(15,23,42,.04);
+  }
+
+  .btnx.small{ padding:.4rem .65rem }
+  input.sleek-core,select.sleek-core{
+    background:#fff; color:#0c1017; border:1px solid var(--ring); border-radius:10px; padding:.55rem .7rem; font:inherit; width:100%
+  }
+  input.sleek-core::placeholder{ color:#9ca3af } input.sleek-core[readonly]{ background:#f9fafb }
+
+  /* table + scroll */
+  .table-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  table{ width:100%; border-collapse:collapse; table-layout:auto }
+  th,td{ padding:10px 10px; border-bottom:1px solid var(--ring); vertical-align:middle; text-align:left }
+  th{ font-size:.75rem; color:#475467; text-transform:uppercase; letter-spacing:.04em; white-space:nowrap }
+  tbody tr:nth-child(odd){ background:#fafafa }
+  .right{ text-align:right } .center{ text-align:center }
+
+  /* grids */
+  .grid-wide{display:grid;grid-template-columns: 1fr 1fr; gap:16px}
+  @media (max-width: 1100px){ .grid-wide{grid-template-columns:1fr} }
+
+  /* section title row */
+  .title-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:8px; flex-wrap:wrap }
+
+  /* tabs */
+  .tabs{ display:flex; gap:8px; border-bottom:1px solid var(--ring); margin-bottom:6px }
+  .tab{ border:1px solid var(--ring); border-bottom:none; border-radius:10px 10px 0 0; padding:8px 12px; background:#f8fafc; cursor:pointer }
+  .tab.active{ background:#fff; border-bottom:1px solid #fff; font-weight:700 }
+
+  /* balances cards */
+  .balances{ display:grid; grid-template-columns:1fr 1fr; gap:16px }
+  @media (max-width:900px){ .balances{ grid-template-columns:1fr } }
+  .bal-amount {font-size: 2.2rem; line-height:1.1}
+
+  /* tiny badges row (Explorer style) */
+  .chip{ font-size:.78rem; padding:.25rem .6rem; border-radius:9999px; background:var(--soft); border:1px solid var(--ring); }
+
+  /* status line */
+  #globalStatus { display:none; align-items:center; gap:.5rem; font-size:.9rem; padding:8px 10px; border-radius:10px; background:#f6faff; border:1px solid #e4efff; color:#155ec0; box-shadow:0 6px 14px rgba(39,141,255,.08) }
+
+  /* modal */
+  .modal-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.35); display:none; align-items:center; justify-content:center; padding:16px; z-index:50 }
+  /* When staking page is inside an iframe, keep modal near the top
+   so user doesn't have to scroll outer page to find it */
+.gl1-embedded .modal-backdrop{
+  align-items:flex-start;
+  justify-content:center;
+  padding-top:clamp(40px, 15vh, 80px);
+}
+  .modal{ width:min(560px, 96%); background:#fff; border-radius:14px; border:1px solid var(--ring); box-shadow:0 1px 2px rgba(0,0,0,.04),0 2px 10px rgba(17,24,39,.05); padding:16px }
+  .modal .row{ display:flex; gap:10px; align-items:center; margin-top:8px; flex-wrap:wrap }
+  .modal .title{ font-weight:700; font-size:16px }
+  .modal .footer{ display:flex; justify-content:space-between; align-items:center; margin-top:12px }
+
+  /* small helpers */
+  .muted{ color:#667085 }
+  .status.ok{ color:#059669 } .status.err{ color:#b91c1c } .status.warn{ color:#b45309 }
+</style>
+</head>
+
+<body>
+
+<!-- ===== Main ===== -->
+<main class="w-full px-4 md:px-6 lg:px-8 py-6 space-y-6">
+
+  <!-- Global status -->
+  <div id="globalStatus" class="card px-3 py-2"></div>
+
+  <!-- Wallets / balances -->
+  <section class="card p-4">
+    <div class="title-row">
+      <div class="font-semibold">Wallets &amp; Quick Send</div>
+      <div class="text-xs text-gray-500">EVM wallet &middot; Keplr (Cosmos)</div>
+    </div>
+
+    <div class="balances">
+      <!-- MetaMask / EVM -->
+      <div class="card p-4">
+        <div class="title-row">
+          <h3 class="font-semibold">EVM wallet</h3>
+          <button id="btnMM" class="btnx primary small">Connect</button>
+        </div>
+        <div class="bal-amount" id="mmBal">—</div>
+        <div class="text-sm"><span class="muted">ETH:</span> <span id="mmEth" class="mono"></span></div>
+        <div class="text-sm"><span class="muted">Bech32:</span> <span id="mmBech" class="mono"></span></div>
+
+        <div class="card p-3 mt-3">
+          <div class="font-semibold mb-1">Send L1 → my Keplr</div>
+          <div class="grid md:grid-cols-3 gap-2">
+            <div>
+              <label class="muted text-xs">Amount (L1)</label>
+              <input id="mmSendAmt" class="sleek-core" placeholder="0.1" />
+            </div>
+            <div class="md:col-span-2">
+              <label class="muted text-xs">To (Keplr Bech32)</label>
+              <input id="mmSendTo" class="sleek-core" placeholder="genesis1…" />
+            </div>
+          </div>
+          <div class="flex items-center gap-2 mt-2">
+            <button id="mmSendBtn" class="btnx small">Send</button>
+            <div id="mmSendNote" class="muted text-sm"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Keplr -->
+      <div class="card p-4">
+        <div class="title-row">
+          <h3 class="font-semibold">Keplr</h3>
+          <button id="btnKeplr" class="btnx primary small">Connect</button>
+        </div>
+        <div class="bal-amount" id="kpBal">—</div>
+        <div class="text-sm"><span class="muted">Bech32:</span> <span id="kpAddr" class="mono"></span></div>
+        <div class="text-sm"><span class="muted">Osmosis:</span> <span id="kpOsmoAddr" class="mono">—</span></div>
+        <div class="text-sm"><span class="muted">L1 (on Osmosis):</span> <span id="kpOsmoBal" class="mono">—</span></div>
+        <div class="text-sm"><span class="muted font-semibold">Total (GenesisL1 + Osmosis):</span> <span id="kpTotalBal" class="mono">—</span></div>
+
+        <div class="card p-3 mt-3">
+          <div class="font-semibold mb-1">Send L1 → my EVM</div>
+          <div class="grid md:grid-cols-3 gap-2">
+            <div>
+              <label class="muted text-xs">Amount (L1)</label>
+              <input id="kpSendAmt" class="sleek-core" placeholder="0.1" />
+            </div>
+            <div class="md:col-span-2">
+              <label class="muted text-xs">To (EVM Bech32)</label>
+              <input id="kpSendTo" class="sleek-core" placeholder="genesis1…" />
+            </div>
+          </div>
+          <div class="flex items-center gap-2 mt-2">
+            <button id="kpSendBtn" class="btnx small">Send</button>
+            <div id="kpSendNote" class="muted text-sm"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- My staking -->
+  <section class="card p-4">
+    <div class="title-row">
+      <div class="font-semibold">My staking</div>
+      <div class="flex items-center gap-2">
+        <button class="btnx small" id="btnLoadMyStake">Reload</button>
+      </div>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Wallet</th>
+            <th>Validator</th>
+            <th class="right">Staked (L1)</th>
+            <th class="right">My rewards (L1)</th>
+            <th class="right">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="myStakeBody"><tr><td colspan="5" class="center muted">Connect a wallet</td></tr></tbody>
+      </table>
+    </div>
+
+    <!-- My rewards -->
+    <div class="title-row mt-4">
+      <div class="flex items-center gap-2">
+        <div class="font-semibold">My rewards</div>
+        <label class="pill"><input type="radio" name="rwsigner" id="rwMM" checked> EVM</label>
+        <label class="pill"><input type="radio" name="rwsigner" id="rwKP"> Keplr</label>
+      </div>
+      <div class="flex items-center gap-2">
+        <button class="btnx small" id="btnRewardsReload">Reload</button>
+        <button class="btnx small" id="btnClaimAll">Claim all</button>
+      </div>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>Wallet</th><th>Validator</th><th class="right">Amount (L1)</th><th class="right">Action</th></tr>
+        </thead>
+        <tbody id="myRewardsBody"><tr><td colspan="4" class="center muted">—</td></tr></tbody>
+      </table>
+    </div>
+    <div id="rewardsNote" class="muted mt-2"></div>
+
+    <!-- My unbondings -->
+    <div class="title-row mt-4">
+      <div class="font-semibold">My unbondings</div>
+      <button class="btnx small" id="btnLoadMyUnbond">Reload</button>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Wallet</th><th>Validator</th><th class="right">Amount (L1)</th><th class="right">Time left</th></tr></thead>
+        <tbody id="myUnbondBody"><tr><td colspan="4" class="center muted">—</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Validators -->
+  <section class="card p-4">
+    <div class="title-row mb-1">
+      <div class="flex items-center gap-2 flex-wrap">
+        <div class="font-semibold">Validators</div>
+        <span class="pill">Stakers (active): <b id="pillStkActive" class="mono">—</b></span>
+        <span class="pill">Stakers (jailed): <b id="pillStkJailed" class="mono">—</b></span>
+        <span class="pill">Total stakers: <b id="pillStkTotal" class="mono">—</b></span>
+      </div>
+      <div class="flex items-center gap-2">
+        <label class="pill"><input type="radio" name="signer" id="signerMM" checked> EVM</label>
+        <label class="pill"><input type="radio" name="signer" id="signerKP"> Keplr</label>
+        <button id="btnReloadAll" class="btnx small">Reload</button>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <div id="tabActive" class="tab active">Active</div>
+      <div id="tabJailed" class="tab">Jailed</div>
+    </div>
+
+    <div id="viewActive">
+      <div class="table-scroll">
+        <table>
+          <thead><tr>
+            <th>Moniker</th>
+            <th>Operator</th>
+            <th>Commission</th>
+            <th class="right">Stakers</th>
+            <th class="right">Voting Power (L1)</th>
+            <th class="right">Rewards (stakers)</th>
+            <th class="right">Commission (validator)</th>
+            <th class="center">Action</th>
+          </tr></thead>
+          <tbody id="valsBody"><tr><td colspan="8" class="center muted">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="viewJailed" style="display:none">
+      <div class="table-scroll">
+        <table>
+          <thead><tr>
+            <th>Moniker</th>
+            <th>Operator</th>
+            <th>Commission</th>
+            <th class="right">Stakers</th>
+            <th class="right">Voting Power (L1)</th>
+            <th class="right">Rewards (stakers)</th>
+            <th class="right">Commission (validator)</th>
+            <th class="center">Action</th>
+          </tr></thead>
+          <tbody id="valsJailedBody"><tr><td colspan="8" class="center muted">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ===== Manage Modal ===== -->
+<div id="modalRoot" class="modal-backdrop">
+  <div class="modal">
+    <div class="title" id="modalTitle">Manage staking</div>
+    <div class="row">
+      <label class="muted" style="min-width:90px">Wallet</label>
+      <label class="pill"><input type="radio" name="mw" id="mwMM" checked> EVM</label>
+      <label class="pill"><input type="radio" name="mw" id="mwKP"> Keplr</label>
+    </div>
+    <div class="row">
+      <label class="muted" style="min-width:90px">Action</label>
+      <select id="mAction" class="sleek-core">
+        <option value="delegate">Delegate</option>
+        <option value="redelegate">Redelegate</option>
+        <option value="unstake">Unstake</option>
+      </select>
+    </div>
+    <div class="row"><label class="muted" style="min-width:90px">Source</label><select id="mSrc" class="sleek-core"><option value="">— source validator —</option></select></div>
+    <div class="row"><label class="muted" style="min-width:90px">Destination</label><select id="mDst" class="sleek-core"><option value="">— destination validator —</option></select></div>
+
+    <!-- Helpful insights -->
+    <div class="row">
+      <label class="muted" style="min-width:90px">Wallet balance</label>
+      <div id="mWalletBal" class="mono">—</div>
+    </div>
+    <div class="row">
+      <label class="muted" style="min-width:90px">My stake @validator</label>
+      <div id="mMyStake" class="mono">—</div>
+    </div>
+
+    <div class="row"><label class="muted" style="min-width:90px">Amount</label><input id="mAmount" class="sleek-core" placeholder="Amount in L1 (e.g. 0.1)" /></div>
+    <div class="footer">
+      <div id="mStatus" class="muted"></div>
+      <div class="row"><button class="btnx" id="mCancel">Cancel</button><button class="btnx primary" id="mSubmit">Submit</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== EVM Wallet Choice Modal (for multiple wallets) ===== -->
+<div id="evmWalletModal" class="modal-backdrop">
+  <div class="modal">
+    <div class="title">Choose EVM wallet</div>
+    <div class="muted text-sm mt-1">
+      Multiple EVM‑compatible wallets were detected in this browser. Choose which one to use for staking &amp; sending.
+    </div>
+    <div id="evmWalletOptions" class="mt-3 space-y-2"></div>
+    <div class="footer">
+      <div class="muted text-xs">You can change this later by disconnecting and reconnecting.</div>
+      <div class="row">
+        <button class="btnx" id="evmWalletCancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== UMD libs (CORS-friendly) ===== -->
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.12.1/dist/ethers.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@hanchon/evmosjs@0.3.0/lib/evmosjs.min.js"></script>
+
+<!-- ===== ESM helpers ===== -->
+<script type="module">
+  import { bech32 } from "https://cdn.jsdelivr.net/npm/bech32@2.0.0/+esm";
+  window.BECH32 = bech32;
+</script>
+<script type="module">
+  import { SigningStargateClient, GasPrice } from "https://cdn.jsdelivr.net/npm/@cosmjs/stargate@0.36.0/+esm";
+  const coin = (amount, denom)=>({ amount:String(amount), denom });
+  window.COSM = { SigningStargateClient, GasPrice, coin };
+</script>
+
+<!-- ===== App logic (staking-only; identical behavior) ===== -->
+<script type="module">
+/* ---------- CONFIG ---------- */
+const CFG = {
+  chainIdCosmos: "genesis_29-2",
+  chainIdEvmFallback: 29,
+  lcd: "https://1317.genesisl1.org/",
+  rpc: "https://26657.genesisl1.org/",
+  bech32: "genesis",
+  coinType: 118,
+  minDenom: "el1",
+  dispDenom: "L1",
+  exp: 18,
+  gasPrice: "70000000000",
+  gasLimit: 1_000_000
+};
+const OSMO = {
+  lcd: "https://lcd.osmosis.zone/",
+  rpc: "https://rpc.osmosis.zone/",
+  bech32: "osmo",
+  feeDenom: "uosmo",
+  feeGasPrice: "2500",
+  el1IbcDenom: "ibc/F16FDC11A7662B86BC0B9CE61871CBACF7C20606F95E86260FD38915184B75B4"
+};
+const EVM = { rpc: "" }; // optional, not required for signing
+
+const $ = (id)=>document.getElementById(id);
+
+/* ---------- STATE ---------- */
+const state = {
+  validatorsActive: [],
+  validatorsJailed: [],
+  power: { active:0n, jailed:0n },
+  mm: { provider:null, eth:"", bech32:"", chainId:CFG.chainIdEvmFallback, connected:false, pubkeyRecovered:false, walletLabel:"" },
+  kp: { client:null, address:"", osmoAddr:"", connected:false, osmoClient:null, osmoAddress:"" },
+  totals: { stakersActive:0, stakersJailed:0 },
+  unbondingCountdowns: [],
+  activeSigner: "mm",
+  rewards: { mm: [], kp: [] },
+  chainOutstandingDec: { num:0n, scale:0 } // maintained to keep identical flows
+};
+
+/* ---------- EIP-6963 multi-wallet discovery (non-breaking) ---------- */
+const evm6963 = { providers: [] };
+
+function initEip6963Discovery(){
+  if (typeof window === "undefined") return;
+  const seen = new Set();
+  window.addEventListener("eip6963:announceProvider", (event)=>{
+    const d = event && event.detail;
+    if (!d || !d.provider || typeof d.provider.request !== "function") return;
+    if (seen.has(d.provider)) return;
+    seen.add(d.provider);
+    evm6963.providers.push(d);
+  });
+  try{
+    window.dispatchEvent(new Event("eip6963:requestProvider"));
+  }catch(_){}
+}
+function getEip6963Providers(){
+  return evm6963.providers.slice();
+}
+
+/* ---------- small Explorer-like connectivity badges ---------- */
+async function pingEndpoints(){
+  try{
+    const jr = await fetch(EVM.rpc || "https://rpc.genesisl1.org", {
+      method:"POST", headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({jsonrpc:"2.0", id:1, method:"eth_chainId", params:[]})
+    });
+    const j = await jr.json(); const cid = j?.result ? parseInt(j.result,16) : null;
+    if ($("rpcBadge")) $("rpcBadge").textContent = cid!=null ? `EVM RPC: chainId ${cid}` : "EVM RPC: connected";
+  }catch{ if ($("rpcBadge")) $("rpcBadge").textContent="EVM RPC: error"; }
+  try{
+    const r = await fetch(CFG.lcd.replace(/\/$/,"")+"/cosmos/base/tendermint/v1beta1/node_info",{headers:{Accept:"application/json"}});
+    $("lcdBadge").textContent = r.ok ? "LCD: connected" : "LCD: error";
+  }catch{ if ($("lcdBadge")) $("lcdBadge").textContent="LCD: error"; }
+  try{
+    const r = await fetch(CFG.rpc.replace(/\/$/,"")+"/status");
+    $("tmBadge").textContent = r.ok ? "Tendermint: connected" : "Tendermint: error";
+  }catch{ if ($("tmBadge")) $("tmBadge").textContent="Tendermint: error"; }
+}
+
+/* ---------- helpers ---------- */
+function setGlobal(msg, cls="muted"){
+  const g=$("globalStatus");
+  if(g){ g.style.display="flex"; g.innerHTML = `<span class="${cls}">${msg}</span>`; }
+}
+function addCommas(x){ return x.replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+const TEN = (n)=> BigInt(10) ** BigInt(n);
+
+function fmtL1_fromIntEl1(intStr, decimals=6){
+  try{
+    const n=BigInt(intStr||"0");
+    const q=n/TEN(CFG.exp);
+    const r=(n%TEN(CFG.exp)).toString().padStart(CFG.exp,'0').slice(0,decimals);
+    return `${addCommas(q.toString())}.${r} ${CFG.dispDenom}`;
+  }catch{ return `0.${'0'.repeat(decimals)} ${CFG.dispDenom}`; }
+}
+function fmtL1Int_fromIntEl1(intStr){
+  try{
+    const n=BigInt(intStr||"0");
+    const denom = TEN(CFG.exp);
+    const rounded = (n + denom/2n) / denom;
+    return `${addCommas(rounded.toString())} ${CFG.dispDenom}`;
+  }catch{ return `0 ${CFG.dispDenom}`; }
+}
+function parseDecEl1(s){
+  const str=String(s||"0").trim();
+  const m = str.match(/^(\d+)(?:\.(\d+))?$/);
+  if (!m) return { num:0n, scale:0 };
+  const I = m[1] || "0";
+  const F = m[2] || "";
+  return { num: BigInt(I + F), scale: F.length };
+}
+function addDec(a,b){ if (a.scale===b.scale) return { num:a.num+b.num, scale:a.scale }; if (a.scale<b.scale) return { num: a.num*TEN(b.scale-a.scale)+b.num, scale:b.scale }; return { num: a.num + b.num*TEN(a.scale-b.scale), scale:a.scale }; }
+function subDecNonNeg(a,b){ const S=Math.max(a.scale,b.scale); const An=a.num*TEN(S-a.scale); const Bn=b.num*TEN(S-b.scale); const diff=An-Bn; return { num: diff>0n?diff:0n, scale:S }; }
+function decIsPositive(a){ return a && a.num>0n; }
+function decToPlainStringEl1(a){ const S=a.scale|0; const n=a.num||0n; if(S===0) return n.toString(); const ip=(n/TEN(S)).toString(); let fp=(n%TEN(S)).toString().padStart(S,'0'); fp=fp.replace(/0+$/,''); return fp.length?`${ip}.${fp}`:ip; }
+function fmtDecEl1ToL1(a, decimals=6){ try{ const denom=TEN((a.scale|0)+CFG.exp); const mul=TEN(decimals); const v=(a.num*mul+denom/2n)/denom; const ip=(v/mul).toString(); const fp=(v%mul).toString().padStart(decimals,'0'); return `${addCommas(ip)}.${fp} ${CFG.dispDenom}`; }catch{ return `0.${'0'.repeat(decimals)} ${CFG.dispDenom}`; } }
+function fmtDecEl1ToL1Int(a){ try{ const denom=TEN((a.scale|0)+CFG.exp); const rounded=(a.num+denom/2n)/denom; return `${addCommas(rounded.toString())} ${CFG.dispDenom}`; }catch{ return `0 ${CFG.dispDenom}`; } }
+function pctStrMixedInt(numerDecStr, denomIntStr){ try{ const [Ni,Nf=""]=String(numerDecStr||"0").split("."); const scale=Nf.length; const N=BigInt((Ni||"0")+Nf); const D=BigInt(denomIntStr||"0")*TEN(scale); if (D===0n) return `0%`; const v=(N*100n + D/2n)/D; return `${v.toString()}%`; }catch{ return `0%`; } }
+function isEth(a){ return /^0x[a-fA-F0-9]{40}$/.test(a||""); }
+async function ethToBech(eth){ const hex=eth.toLowerCase().replace(/^0x/,''); const bytes=Uint8Array.from(hex.match(/.{1,2}/g).map(h=>parseInt(h,16))); return window.BECH32.encode(CFG.bech32, window.BECH32.toWords(bytes)); }
+function bech32Recode(addr, newPrefix){ const { words } = window.BECH32.decode(addr); const bytes = window.BECH32.fromWords(words); return window.BECH32.encode(newPrefix, window.BECH32.toWords(bytes)); }
+function bechToEth(b){ const {words}=window.BECH32.decode(b); const bytes=window.BECH32.fromWords(words); return "0x"+Array.from(bytes).map(bb=>bb.toString(16)).map(h=>h.padStart(2,"0")).join(""); }
+async function rest(path, params={}){ const url=new URL(CFG.lcd.replace(/\/$/,"")+path); for (const [k,v] of Object.entries(params)) url.searchParams.set(k,v); const r=await fetch(url.toString(),{headers:{Accept:"application/json"}}); if(!r.ok) throw new Error(`${r.status} ${r.statusText}`); return await r.json(); }
+async function restOsmo(path, params={}){ const url=new URL(OSMO.lcd.replace(/\/$/,"")+path); for (const [k,v] of Object.entries(params)) url.searchParams.set(k,v); const r=await fetch(url.toString(),{headers:{Accept:"application/json"}}); if(!r.ok) throw new Error(`${r.status} ${r.statusText}`); return await r.json(); }
+
+/* ----- EVM multi-wallet selection helpers ----- */
+function detectEvmProviders(){
+  const out = [];
+  const seen = new Set();
+  const add = (p)=>{
+    if (!p || typeof p.request !== "function") return;
+    if (seen.has(p)) return;
+    seen.add(p);
+    out.push(p);
+  };
+
+  // 1) EIP-6963 providers (Rabby, MetaMask, Trust, etc.)
+  getEip6963Providers().forEach(d=>add(d.provider));
+
+  // 2) window.ethereum + .providers (older multi-provider pattern)
+  const eth = window.ethereum;
+  if (eth){
+    if (Array.isArray(eth.providers) && eth.providers.length){
+      eth.providers.forEach(add);
+    } else {
+      add(eth);
+    }
+  }
+
+  // 3) Known globals exposed by specific wallets
+  add(window.rabby);                  // Rabby Wallet
+  add(window.trustwallet);            // Trust Wallet
+  add(window.coinbaseWalletExtension);// Coinbase Wallet
+
+  return out;
+}
+
+function describeEvmProvider(p, index){
+  if (!p) return { label: `EVM wallet ${index+1}`, detail: "" };
+
+  // Prefer EIP-6963 advertised name, if any
+  const announced = getEip6963Providers().find(d => d.provider === p);
+  if (announced && announced.info && announced.info.name){
+    const detail = announced.info.rdns || "";
+    return { label: announced.info.name, detail };
+  }
+
+  let label = "";
+  const detailFlags = [];
+
+  // Rabby Wallet
+  if (p.isRabby || p._isRabby || (window.rabby && p === window.rabby)){
+    label = "Rabby Wallet";
+  }
+  // MetaMask
+  else if (p.isMetaMask){
+    label = "MetaMask";
+    detailFlags.push("EIP‑712");
+  }
+  // Trust Wallet
+  else if (p.isTrust || p.isTrustWallet || p === window.trustwallet){
+    label = "Trust Wallet";
+  }
+  // Coinbase
+  else if (p.isCoinbaseWallet || p.isWalletLink || p === window.coinbaseWalletExtension){
+    label = "Coinbase Wallet";
+  }
+  // Brave
+  else if (p.isBraveWallet){
+    label = "Brave Wallet";
+  }
+  // Frame
+  else if (p.isFrame){
+    label = "Frame";
+  }
+  // Tally
+  else if (p.isTally){
+    label = "Tally Ho";
+  }
+  // XDEFI
+  else if (p.isXDEFI){
+    label = "XDEFI";
+  }
+  else{
+    label = `EVM wallet ${index+1}`;
+  }
+
+  return { label, detail: detailFlags.join(" • ") };
+}
+
+async function chooseEvmProviderInteractive(candidates){
+  if (!candidates || !candidates.length) return null;
+  if (candidates.length === 1) return candidates[0];
+
+  const root = $("evmWalletModal");
+  const box = $("evmWalletOptions");
+  const cancel = $("evmWalletCancel");
+
+  // Fallback: no modal available
+  if (!root || !box){
+    const msg = "Multiple EVM wallets were detected. Choose one by number:\n" +
+      candidates.map((p,i)=>{
+        const d = describeEvmProvider(p,i);
+        return `${i+1}. ${d.label}`;
+      }).join("\n");
+    const choice = Number(prompt(msg,"1") || "1");
+    const idx = Math.max(1, Math.min(candidates.length, choice)) - 1;
+    return candidates[idx];
+  }
+
+  return new Promise((resolve)=>{
+    root.style.display="flex";
+    box.innerHTML = "";
+    candidates.forEach((prov, idx)=>{
+      const d = describeEvmProvider(prov, idx);
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btnx w-full flex justify-between items-center";
+      btn.innerHTML = `<span>${d.label}</span>` + (d.detail ? `<span class="muted text-xs">${d.detail}</span>` : "");
+      btn.addEventListener("click", ()=>{
+        root.style.display = "none";
+        resolve(prov);
+      });
+      box.appendChild(btn);
+    });
+    if (cancel){
+      cancel.onclick = ()=>{ root.style.display="none"; resolve(null); };
+    }
+  });
+}
+
+function mmProvider(){
+  const list = detectEvmProviders();
+  if (!list.length) return null;
+  const meta = list.find(p=>p && p.isMetaMask);
+  return meta || list[0];
+}
+
+/* ----- Osmosis voucher helpers (robust) ----- */
+async function getOsmoVoucherBalance(addrOsmo){
+  if (!addrOsmo) return "0";
+  try{
+    const j=await restOsmo(`/cosmos/bank/v1beta1/balances/${addrOsmo}/by_denom`, { denom: OSMO.el1IbcDenom });
+    if (j?.balance?.amount) return j.balance.amount;
+  }catch{}
+  try{
+    const all=await restOsmo(`/cosmos/bank/v1beta1/balances/${addrOsmo}`, { "pagination.limit":"200" });
+    const f=(all.balances||[]).find(b=>b.denom===OSMO.el1IbcDenom);
+    return f ? f.amount : "0";
+  }catch{}
+  return "0";
+}
+
+async function getBalance(addr){
+  try{ const j=await rest(`/cosmos/bank/v1beta1/balances/${addr}/by_denom`, { denom: CFG.minDenom }); if (j?.balance?.amount) return j.balance.amount; }catch{}
+  const all=await rest(`/cosmos/bank/v1beta1/balances/${addr}`, { "pagination.limit":"200" }); const f=(all.balances||[]).find(b=>b.denom===CFG.minDenom);
+  return f ? f.amount : "0";
+}
+async function refreshBalances(){
+  // MetaMask / EVM basics
+  $("mmEth").textContent = state.mm.eth || "";
+  $("mmBech").textContent = state.mm.bech32 || "";
+
+  // MetaMask GenesisL1 balance
+  const mmChainBalInt = state.mm.bech32 ? await getBalance(state.mm.bech32) : "0";
+  $("mmBal").textContent = state.mm.bech32 ? fmtL1_fromIntEl1(mmChainBalInt, 6) : "—";
+
+  // Keplr balances
+  $("kpAddr").textContent = state.kp.address || "";
+  const kpChainBalInt = state.kp.address ? await getBalance(state.kp.address) : "0";
+  $("kpBal").textContent = state.kp.address ? fmtL1_fromIntEl1(kpChainBalInt, 6) : "—";
+
+  // Osmosis (Keplr)
+  let kpOsmoVoucherInt = "0";
+  if (state.kp.osmoAddr){
+    $("kpOsmoAddr").textContent = state.kp.osmoAddr;
+    try{
+      kpOsmoVoucherInt = await getOsmoVoucherBalance(state.kp.osmoAddr);
+      $("kpOsmoBal").textContent = fmtL1_fromIntEl1(kpOsmoVoucherInt, 6);
+    }catch{ $("kpOsmoBal").textContent = "—"; }
+  } else { $("kpOsmoAddr").textContent = "—"; $("kpOsmoBal").textContent = "—"; }
+
+  // Keplr Total (L1)
+  try{
+    const totalInt = (BigInt(kpChainBalInt||"0") + BigInt(kpOsmoVoucherInt||"0")).toString();
+    $("kpTotalBal").textContent = fmtL1_fromIntEl1(totalInt, 6);
+  }catch{ $("kpTotalBal").textContent = "—"; }
+
+  // Mirror defaults in quick-send
+  if (state.kp.address) $("mmSendTo").value = state.kp.address;
+  if (state.mm.bech32) $("kpSendTo").value = state.mm.bech32;
+}
+
+async function getAccInfo(addr){
+  try{ const c=new window.evmosjs.RestInstance(CFG.lcd.replace(/\/$/,"")); const r=await window.evmosjs.getAccount(c, addr);
+       return { accountNumber:Number(r.accountNumber||0), sequence:Number(r.sequence||0), pubkey:r.pubkey||"" }; }
+  catch(_){ const j=await rest(`/cosmos/auth/v1beta1/accounts/${addr}`); const base=j?.account ?? {};
+    return { accountNumber:Number(base?.base_account?.account_number ?? base?.account_number ?? 0),
+             sequence:Number(base?.base_account?.sequence ?? base?.sequence ?? 0),
+             pubkey:base?.base_account?.pub_key?.key || base?.pub_key?.key || "" }; }
+}
+async function recoverEthCompressedPubkeyB64(ethAddr){
+  const msg="Verify Public Key"; const sig = await state.mm.provider.request({ method:"personal_sign", params:[msg, ethAddr, ""] });
+  const h = ethers.hashMessage(msg); const uncmp = ethers.SigningKey.recoverPublicKey(h, sig); const cmp = ethers.SigningKey.computePublicKey(uncmp, true).replace(/^0x/,'');
+  return btoa(String.fromCharCode(...Uint8Array.from(cmp.match(/.{1,2}/g).map(x=>parseInt(x,16)))));
+}
+async function getSenderCtx(){
+  const info = await getAccInfo(state.mm.bech32); let pubkey = info.pubkey;
+  if (!pubkey && !state.mm.pubkeyRecovered){ try{ pubkey = await recoverEthCompressedPubkeyB64(state.mm.eth); state.mm.pubkeyRecovered = true; }catch{} }
+  return { accountAddress: state.mm.bech32, sequence: info.sequence, accountNumber: info.accountNumber, pubkey: pubkey||"" };
+}
+
+function cmpBigIntDesc(aStr, bStr){ const A=BigInt(aStr||"0"), B=BigInt(bStr||"0"); return A===B?0:(A<B?1:-1); }
+async function fetchPageActive(nextKey=null){ const p={ status:"BOND_STATUS_BONDED", "pagination.limit":"50" }; if (nextKey) p["pagination.key"]=nextKey; const j=await rest(`/cosmos/staking/v1beta1/validators`, p); return { list:(j.validators||[]).filter(v=>!v.jailed), next:j.pagination?.next_key || null }; }
+async function fetchPageAll(nextKey=null){ const p={ "pagination.limit":"100" }; if (nextKey) p["pagination.key"]=nextKey; const j=await rest(`/cosmos/staking/v1beta1/validators`, p); return { list:(j.validators||[]), next:j.pagination?.next_key || null }; }
+
+const stakersCellId = (valoper,prefix="")=> `${prefix}stk_${valoper}`;
+const rwdCellId     = (valoper,prefix="")=> `${prefix}rwd_${valoper}`;
+const comCellId     = (valoper,prefix="")=> `${prefix}com_${valoper}`;
+
+function appendValidatorRow(v, tbodyId, prefix=""){
+  const moniker = v.description?.moniker || "(unnamed)";
+  const rate = v.commission?.commission_rates?.rate ? (Number(v.commission.commission_rates.rate)*100).toFixed(2)+"%" : "—";
+  const power = fmtL1_fromIntEl1(v.tokens||"0", 3);
+  let actionHtml = `<button class="btnx small" data-act="stake" data-val="${v.operator_address}">Stake</button>
+                    <button class="btnx small" data-act="unstake" data-val="${v.operator_address}">Unstake</button>`;
+  if (prefix==="J_"){ actionHtml = `<button class="btnx small" data-act="redelegate" data-val="${v.operator_address}">Redelegate</button>
+                                     <button class="btnx small" data-act="unstake" data-val="${v.operator_address}">Unstake</button>`; }
+  const tr=document.createElement("tr");
+  tr.innerHTML = `<td>${moniker}</td>
+                  <td class="mono">${v.operator_address}</td>
+                  <td>${rate}</td>
+                  <td class="right"><span id="${stakersCellId(v.operator_address,prefix)}">…</span></td>
+                  <td class="right">${power}</td>
+                  <td class="right"><span id="${rwdCellId(v.operator_address,prefix)}">…</span></td>
+                  <td class="right"><span id="${comCellId(v.operator_address,prefix)}">…</span></td>
+                  <td class="center">${actionHtml}</td>`;
+  $(tbodyId).appendChild(tr);
+}
+function fillModalSelects(list){
+  const src=$("mSrc"), dst=$("mDst"); if(!src||!dst) return;
+  src.innerHTML = `<option value="">— source validator —</option>`;
+  dst.innerHTML = `<option value="">— destination validator —</option>`;
+  list.forEach(v=>{ const name=v.description?.moniker || v.operator_address;
+    let o1=document.createElement("option"); o1.value=v.operator_address; o1.textContent=name; src.appendChild(o1);
+    let o2=document.createElement("option"); o2.value=v.operator_address; o2.textContent=name; dst.appendChild(o2); });
+}
+async function fetchDelegatorCount(valoper){
+  try{ const j=await rest(`/cosmos/staking/v1beta1/validators/${valoper}/delegations`, { "pagination.limit":"1", "pagination.count_total":"true" });
+       const total=j?.pagination?.total ?? j?.pagination?.total_count ?? "0"; const n=Number(total); return Number.isFinite(n) ? n : null; }catch{ return null; }
+}
+async function fetchValidatorRewards(valoper){
+  let outstandingDec = { num:0n, scale:0 };
+  let commissionDec  = { num:0n, scale:0 };
+  try{
+    const j1 = await rest(`/cosmos/distribution/v1beta1/validators/${valoper}/outstanding_rewards`);
+    const amt = (j1?.rewards?.rewards||[]).find(c=>c.denom===CFG.minDenom)?.amount || "0";
+    outstandingDec = parseDecEl1(amt);
+  }catch{}
+  try{
+    const j2 = await rest(`/cosmos/distribution/v1beta1/validators/${valoper}/commission`);
+    const com = (j2?.commission?.commission||[]).find(c=>c.denom===CFG.minDenom)?.amount || "0";
+    commissionDec = parseDecEl1(com);
+  }catch{}
+  const stakersDec = subDecNonNeg(outstandingDec, commissionDec);
+  return { outstandingDec, commissionDec, stakersDec };
+}
+
+async function populateExtraPerValidator(list, prefix="", tallyKey){
+  let subtotalStakers = 0;
+  let outstandingSumDec = { num:0n, scale:0 };
+
+  let i=0;
+  const run = async () => {
+    while(i<list.length){
+      const v=list[i++];
+
+      const cell=document.getElementById(stakersCellId(v.operator_address,prefix));
+      if(cell) cell.textContent="…";
+      const n=await fetchDelegatorCount(v.operator_address);
+      if (cell) cell.textContent = n==null ? "—" : addCommas(String(n));
+      if (typeof n==="number") subtotalStakers += n;
+
+      const rCell = document.getElementById(rwdCellId(v.operator_address,prefix));
+      const cCell = document.getElementById(comCellId(v.operator_address,prefix));
+      if (rCell) rCell.textContent="…"; if (cCell) cCell.textContent="…";
+      try{
+        const { outstandingDec, commissionDec, stakersDec } = await fetchValidatorRewards(v.operator_address);
+        outstandingSumDec = addDec(outstandingSumDec, outstandingDec);
+        if (rCell) rCell.textContent = fmtDecEl1ToL1(stakersDec, 6);
+        if (cCell) cCell.textContent = fmtDecEl1ToL1(commissionDec, 6);
+      }catch{
+        if (rCell) rCell.textContent = "—";
+        if (cCell) cCell.textContent = "—";
+      }
+    }
+  };
+  const tasks = Array.from({length:Math.min(6,list.length)}, run);
+  await Promise.allSettled(tasks);
+
+  state.totals[tallyKey]=subtotalStakers;
+  $("pillStkActive").textContent = addCommas(String(state.totals.stakersActive));
+  $("pillStkJailed").textContent = addCommas(String(state.totals.stakersJailed));
+  $("pillStkTotal").textContent = addCommas(String(state.totals.stakersActive + state.totals.stakersJailed));
+
+  return outstandingSumDec;
+}
+
+async function streamValidators(){
+  const body=$("valsBody"); if (!body) return;
+  body.innerHTML = `<tr><td colspan="8" class="center muted">Loading…</td></tr>`;
+  state.validatorsActive=[];
+  try{ let next=null, got=false;
+    do{ const { list, next:nk } = await fetchPageActive(next); if(!got){ body.innerHTML=""; got=true; }
+        state.validatorsActive.push(...list); list.forEach(v=>appendValidatorRow(v,"valsBody","")); next=nk; }while(next);
+  }catch(e){ console.warn("Active validators failed, fallback:", e); }
+  if (state.validatorsActive.length===0){
+    try{ body.innerHTML = `<tr><td colspan="8" class="center muted">Loading (fallback)…</td></tr>`;
+      let next=null, got=false;
+      do{ const { list, next:nk } = await fetchPageAll(next);
+          const filtered=list.filter(v=>!v.jailed && (v.status==="BOND_STATUS_BONDED" || !v.status));
+          if(!got){ body.innerHTML=""; got=true; } state.validatorsActive.push(...filtered);
+          filtered.forEach(v=>appendValidatorRow(v,"valsBody","")); next=nk; }while(next);
+    }catch(e){ console.error(e); body.innerHTML=`<tr><td colspan="8" class="center muted">Failed to load validators</td></tr>`; }
+  }
+  const sorted=[...state.validatorsActive].sort((a,b)=>cmpBigIntDesc(a.tokens,b.tokens));
+  body.innerHTML=""; sorted.forEach(v=>appendValidatorRow(v,"valsBody",""));
+
+  state.power.active = sorted.reduce((acc,v)=>acc+BigInt(v.tokens||"0"),0n);
+  fillModalSelects(sorted);
+
+  const outDec = await populateExtraPerValidator(sorted,"","stakersActive");
+  return outDec;
+}
+
+async function streamJailedValidators(){
+  const body=$("valsJailedBody"); if (!body) return;
+  body.innerHTML = `<tr><td colspan="8" class="center muted">Loading…</td></tr>`;
+  state.validatorsJailed=[];
+  try{ let next=null, got=false;
+    do{ const { list, next:nk } = await fetchPageAll(next); const filtered=(list||[]).filter(v=>v.jailed);
+        if(!got){ body.innerHTML=""; got=true; } state.validatorsJailed.push(...filtered);
+        filtered.forEach(v=>appendValidatorRow(v,"valsJailedBody","J_")); next=nk; }while(next);
+    const sorted=[...state.validatorsJailed].sort((a,b)=>cmpBigIntDesc(a.tokens,b.tokens));
+    body.innerHTML=""; sorted.forEach(v=>appendValidatorRow(v,"valsJailedBody","J_"));
+    state.power.jailed = sorted.reduce((acc,v)=>acc+BigInt(v.tokens||"0"),0n);
+
+    const outDec = await populateExtraPerValidator(sorted,"J_","stakersJailed");
+    return outDec;
+  }catch(e){ console.error(e); body.innerHTML=`<tr><td colspan="8" class="center muted">Failed to load jailed validators</td></tr>`; return {num:0n,scale:0}; }
+}
+
+/* ----- NO-OP loadStats ----- */
+async function loadStats(){ /* intentionally empty on staking-only page */ }
+
+/* ----- EIP-712 & broadcast ----- */
+let _tharsis = null, _provider = null;
+async function loadTharsis(){
+  if (_tharsis && _provider) return { T:_tharsis, P:_provider };
+  const txCandidates = [
+    "https://esm.sh/@tharsis/transactions@0.2.6?bundle&target=es2020",
+    "https://esm.run/@tharsis/transactions@0.2.6",
+    "https://ga.jspm.io/npm:@tharsis/transactions@0.2.6/dist/index.js"
+  ];
+  for (const u of txCandidates){
+    try{
+      const M = await import(u);
+      const api = M?.createTxMsgDelegate ? M :
+                  (M?.default?.createTxMsgDelegate ? M.default : null);
+      if (api) { _tharsis = api; break; }
+    }catch{}
+  }
+  if (!_tharsis) throw new Error("Failed to load Tharsis transactions (EIP-712)");
+
+  const provCandidates = [
+    "https://esm.sh/@tharsis/provider@0.2.4?bundle&target=es2020",
+    "https://ga.jspm.io/npm:@tharsis/provider@0.2.4/dist/index.js"
+  ];
+  for (const u of provCandidates){
+    try{
+      const M = await import(u);
+      if (M?.generateEndpointBroadcast && M?.generatePostBodyBroadcast){ _provider = M; break; }
+      if (M?.default?.generateEndpointBroadcast){ _provider = M.default; break; }
+    }catch{}
+  }
+  if (!_provider) throw new Error("Failed to load Tharsis provider");
+
+  return { T:_tharsis, P:_provider };
+}
+function parseExpectedSeq(raw){ if(!raw) return null; let m=/expected\s+(\d+)/i.exec(raw); if(m)return Number(m[1]); m=/got\s+\d+,\s*expected\s+(\d+)/i.exec(raw); if(m)return Number(m[1]); return null; }
+
+function toBaseUnitsBI(l1Str){
+  const s = String(l1Str||"").trim(); if (!s) return 0n;
+  const m = s.match(/^(-)?(\d+)(?:\.(\d+))?$/); if (!m) throw new Error("Invalid amount");
+  const neg=!!m[1], i=m[2], f=(m[3]||"").slice(0,CFG.exp);
+  const fracPadded = f + "0".repeat(CFG.exp - f.length);
+  const bi = BigInt(i) * TEN(CFG.exp) + BigInt(fracPadded||"0");
+  return neg ? -bi : bi;
+}
+async function mmBuildSignBroadcast(kind, args={}, seqOverride=null){
+  const { T, P } = await loadTharsis();
+  if (!state.mm.connected) throw new Error("Connect EVM first");
+  const senderBase = await getSenderCtx();
+  const sender = { ...senderBase, sequence: seqOverride ?? senderBase.sequence };
+  const fee = { amount:(BigInt(CFG.gasLimit)*BigInt(CFG.gasPrice)).toString(), denom:CFG.minDenom, gas:String(CFG.gasLimit) };
+  const chain = { chainId: state.mm.chainId || CFG.chainIdEvmFallback, cosmosChainId: CFG.chainIdCosmos };
+  const memo = args.memo || "";
+
+  let tx;
+  if (kind==="delegate"){
+    const base = toBaseUnitsBI(args.amountL1);
+    if (!args.dst) throw new Error("Choose destination validator");
+    tx = T.createTxMsgDelegate(chain, sender, fee, memo, { validatorAddress: args.dst, amount: base.toString(), denom: CFG.minDenom });
+  } else if (kind==="unstake"){
+    const base = toBaseUnitsBI(args.amountL1);
+    if (!args.src) throw new Error("Choose source validator");
+    tx = T.createTxMsgUndelegate(chain, sender, fee, memo, { validatorAddress: args.src, amount: base.toString(), denom: CFG.minDenom });
+  } else if (kind==="redelegate"){
+    const base = toBaseUnitsBI(args.amountL1);
+    if (!args.src || !args.dst) throw new Error("Choose source and destination");
+    tx = T.createTxMsgBeginRedelegate(chain, sender, fee, memo, { validatorSrcAddress: args.src, validatorDstAddress: args.dst, amount: base.toString(), denom: CFG.minDenom });
+  } else if (kind==="claim"){
+    const val = args.val || args.src || args.dst;
+    if (!val) throw new Error("Validator required");
+    if (!T.createTxMsgWithdrawDelegatorReward) throw new Error("EIP-712 reward helper missing in Tharsis lib");
+    tx = T.createTxMsgWithdrawDelegatorReward(chain, sender, fee, memo, { validatorAddress: val });
+  } else {
+    throw new Error("Unknown action");
+  }
+
+  const sigHex = await state.mm.provider.request({ method:"eth_signTypedData_v4", params:[state.mm.eth, JSON.stringify(tx.eipToSign)] });
+  const ext = T.signatureToWeb3Extension(chain, sender, sigHex);
+  const txRaw = T.createTxRawEIP712(tx.legacyAmino.body, tx.legacyAmino.authInfo, ext);
+
+  const endpoint = CFG.lcd.replace(/\/$/,"") + P.generateEndpointBroadcast();
+  const body = P.generatePostBodyBroadcast(txRaw);
+  const res = await fetch(endpoint, { method:"POST", headers:{ "Content-Type":"application/json" }, body }).then(r=>r.json());
+  return { res, sender };
+}
+async function mmAction(kind, args){
+  // first attempt
+  let { res, sender } = await mmBuildSignBroadcast(kind, args, null);
+  if (res?.tx_response?.code){
+    // sequence-mismatch retry
+    const exp = parseExpectedSeq(res.tx_response.raw_log||"");
+    if (typeof exp === "number" && exp !== sender.sequence){
+      ({ res } = await mmBuildSignBroadcast(kind, args, exp));
+    }
+  }
+  if (res?.tx_response?.code) throw new Error(`Tx error (code ${res.tx_response.code}): ${res.tx_response.raw_log || "see node logs"}`);
+  return res;
+}
+
+async function mmSendNative(amtL1, toAddrBechOrHex){
+  if (!state.mm.connected) throw new Error("Connect EVM first");
+  const toHex = isEth(toAddrBechOrHex) ? toAddrBechOrHex : bechToEth(toAddrBechOrHex);
+  const valueHex = "0x" + toBaseUnitsBI(amtL1).toString(16);
+  const txParams = { from: state.mm.eth, to: toHex, value: valueHex };
+  const txHash = await state.mm.provider.request({ method:"eth_sendTransaction", params:[txParams] });
+  return txHash;
+}
+
+/* === Keplr staking + send === */
+function encUvarint(n){ const out=[]; while (n > 127){ out.push((n & 0x7f) | 0x80); n >>>= 7; } out.push(n); return new Uint8Array(out); }
+function concatBytes(arrs){ let len=0; for (const a of arrs) len+=a.length; const out=new Uint8Array(len); let o=0; for(const a of arrs){ out.set(a,o); o+=a.length; } return out; }
+function toBytes(x){
+  if (x instanceof Uint8Array) return x;
+  if (Array.isArray(x)) return Uint8Array.from(x);
+  if (typeof x === "string"){ const b=atob(x); const u=new Uint8Array(b.length); for(let i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return u; }
+  return new Uint8Array();
+}
+function encodeTxRawLocal(txRaw){
+  const body = toBytes(txRaw.bodyBytes ?? txRaw.body_bytes ?? txRaw.body ?? []);
+  const auth = toBytes(txRaw.authInfoBytes ?? txRaw.auth_info_bytes ?? txRaw.authInfo ?? []);
+  const sigs = Array.isArray(txRaw.signatures) ? txRaw.signatures.map(toBytes) : [];
+  const parts = [
+    new Uint8Array([0x0a]), encUvarint(body.length), body,
+    new Uint8Array([0x12]), encUvarint(auth.length), auth
+  ];
+  for (const s of sigs){ parts.push(new Uint8Array([0x1a]), encUvarint(s.length), s); }
+  return concatBytes(parts);
+}
+async function kpAction(kind, { src, dst, amountL1 }){
+  if (!state.kp.connected) throw new Error("Connect Keplr first");
+  const me = state.kp.address;
+
+  let msgs = [];
+  if (kind==="delegate"){
+    if (!dst) throw new Error("Choose destination validator");
+    const base = toBaseUnitsBI(amountL1).toString();
+    msgs = [{ typeUrl:"/cosmos.staking.v1beta1.MsgDelegate", value:{ delegatorAddress: me, validatorAddress: dst, amount:{ denom: CFG.minDenom, amount: base } } }];
+  } else if (kind==="unstake"){
+    if (!src) throw new Error("Choose source validator");
+    const base = toBaseUnitsBI(amountL1).toString();
+    msgs = [{ typeUrl:"/cosmos.staking.v1beta1.MsgUndelegate", value:{ delegatorAddress: me, validatorAddress: src, amount:{ denom: CFG.minDenom, amount: base } } }];
+  } else if (kind==="redelegate"){
+    if (!src || !dst) throw new Error("Choose source and destination");
+    const base = toBaseUnitsBI(amountL1).toString();
+    msgs = [{ typeUrl:"/cosmos.staking.v1beta1.MsgBeginRedelegate", value:{ delegatorAddress: me, validatorSrcAddress: src, validatorDstAddress: dst, amount:{ denom: CFG.minDenom, amount: base } } }];
+  } else if (kind==="send"){
+    if (!dst) throw new Error("Enter recipient");
+    const base = toBaseUnitsBI(amountL1).toString();
+    msgs = [{ typeUrl: "/cosmos.bank.v1beta1.MsgSend", value: { fromAddress: me, toAddress: dst, amount: [{ denom: CFG.minDenom, amount: base }] } }];
+  } else {
+    throw new Error("Unknown action");
+  }
+
+  const info = await getAccInfo(me);
+  const fee = { amount: [{ denom: CFG.minDenom, amount: (BigInt(CFG.gasLimit) * BigInt(CFG.gasPrice)).toString() }], gas: String(CFG.gasLimit) };
+  const txRaw = await state.kp.client.sign(me, msgs, fee, "", { accountNumber: info.accountNumber, sequence: info.sequence, chainId: CFG.chainIdCosmos });
+  const txBytes = encodeTxRawLocal(txRaw);
+  return await state.kp.client.broadcastTx(txBytes);
+}
+
+/* rewards */
+async function kpClaimRewards(valopers){
+  if (!state.kp.connected) throw new Error("Connect Keplr first");
+  const me = state.kp.address;
+  const msgs = valopers.map(v=>({ typeUrl: "/cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward", value: { delegatorAddress: me, validatorAddress: v } }));
+  const info = await getAccInfo(me);
+  const fee = { amount: [{ denom: CFG.minDenom, amount: (BigInt(CFG.gasLimit) * BigInt(CFG.gasPrice)).toString() }], gas: String(CFG.gasLimit) };
+  const txRaw = await state.kp.client.sign(me, msgs, fee, "", { accountNumber: info.accountNumber, sequence: info.sequence, chainId: CFG.chainIdCosmos });
+  const txBytes = encodeTxRawLocal(txRaw);
+  return await state.kp.client.broadcastTx(txBytes);
+}
+async function fetchRewards(addr){
+  const j = await rest(`/cosmos/distribution/v1beta1/delegators/${addr}/rewards`);
+  const list = (j?.rewards || []).map(r=>{
+    const decStr = (r.reward || []).find(c=>c.denom===CFG.minDenom)?.amount || "0";
+    return { valoper: r.validator_address, dec: parseDecEl1(decStr) };
+  }).filter(x=>x && x.dec && x.dec.num>0n);
+  return list;
+}
+function renderRewardsRows(){
+  const body=$("myRewardsBody"); if(!body) return;
+  body.innerHTML="";
+  let any=false;
+  const pushRow=(tag, entry)=>{
+    any=true;
+    const name = state.validatorsActive.find(x=>x.operator_address===entry.valoper)?.description?.moniker
+              || state.validatorsJailed.find(x=>x.operator_address===entry.valoper)?.description?.moniker
+              || entry.valoper;
+    const amt = fmtDecEl1ToL1(entry.dec, 6);
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${tag}</td><td>${name}<div class="muted mono">${entry.valoper}</div></td><td class="right">${amt}</td>
+                  <td class="right"><button class="btnx small" data-claim="one" data-w="${tag}" data-val="${entry.valoper}">Claim</button></td>`;
+    body.appendChild(tr);
+  };
+  state.rewards.mm.forEach(e=>pushRow("EVM", e));
+  state.rewards.kp.forEach(e=>pushRow("Keplr", e));
+  if (!any) body.innerHTML=`<tr><td colspan="4" class="center muted">No rewards found</td></tr>`;
+  $("rewardsNote").textContent = `Tip: choose EVM/Keplr above for “Claim all”.`;
+}
+async function loadMyRewards(){
+  const mmAddr = state.mm.bech32;
+  const kpAddr = state.kp.address;
+  state.rewards = { mm: [], kp: [] };
+  if (mmAddr){ try{ state.rewards.mm = await fetchRewards(mmAddr); }catch{} }
+  if (kpAddr){ try{ state.rewards.kp = await fetchRewards(kpAddr); }catch{} }
+  renderRewardsRows();
+}
+
+/* ============ Manage modal insights ============ */
+async function getDelegationAmount(delegator, valoper){
+  if (!delegator || !valoper) return "0";
+  try{
+    const j = await rest(`/cosmos/staking/v1beta1/delegations/${delegator}`, { "pagination.limit":"500" });
+    const hit = (j.delegation_responses||[]).find(x=>x.delegation?.validator_address===valoper);
+    return hit?.balance?.amount || "0";
+  }catch{
+    try{
+      const j2 = await rest(`/cosmos/staking/v1beta1/validators/${valoper}/delegations`, { "pagination.limit":"200" });
+      const hit2 = (j2.delegation_responses||[]).find(x=>x.delegation?.delegator_address===delegator);
+      return hit2?.balance?.amount || "0";
+    }catch{ return "0"; }
+  }
+}
+async function updateManageModalStats(){
+  const wallet = $("mwKP")?.checked ? "kp" : "mm";
+  const action = $("mAction")?.value || "delegate";
+  const val = (action==="delegate" ? $("mDst")?.value : $("mSrc")?.value) || "";
+  const balEl = $("mWalletBal"), myEl = $("mMyStake");
+  if (balEl) balEl.textContent="—";
+  if (myEl) myEl.textContent="—";
+
+  let addr = wallet==="kp" ? state.kp.address : state.mm.bech32;
+  if (!addr){ return; }
+
+  try{
+    const bal = await getBalance(addr);
+    if (balEl) balEl.textContent = fmtL1_fromIntEl1(bal,6);
+  }catch{}
+  try{
+    if (val){
+      const amt = await getDelegationAmount(addr, val);
+      if (myEl) myEl.textContent = fmtL1_fromIntEl1(amt,6);
+    }
+  }catch{}
+}
+
+/* ---------------- Lifecycle ---------------- */
+function syncSignerRadios(){
+  const isMM = state.activeSigner==="mm";
+  [["signerMM","signerKP"],["rwMM","rwKP"]].forEach(([mm,kp])=>{
+    if ($(mm)) $(mm).checked = isMM;
+    if ($(kp)) $(kp).checked = !isMM;
+  });
+}
+function onReady(fn){ if (document.readyState==='loading') document.addEventListener('DOMContentLoaded', fn); else fn(); }
+
+onReady(async ()=>{
+  // Start EIP-6963 discovery early
+  initEip6963Discovery();
+
+  // tabs
+  const setTabs=(which)=>{
+    const A=$("tabActive"), J=$("tabJailed"), vA=$("viewActive"), vJ=$("viewJailed");
+    if (!A||!J||!vA||!vJ) return;
+    if (which==="active"){ A.classList.add("active"); J.classList.remove("active"); vA.style.display="block"; vJ.style.display="none"; }
+    else { J.classList.add("active"); A.classList.remove("active"); vJ.style.display="block"; vA.style.display="none"; }
+  };
+  $("tabActive")?.addEventListener("click", ()=>setTabs("active"));
+  $("tabJailed")?.addEventListener("click", ()=>setTabs("jailed"));
+  setTabs("active");
+
+  // signer switchers
+  $("signerMM")?.addEventListener("change", ()=>{ if ($("signerMM").checked) { state.activeSigner="mm"; syncSignerRadios(); } });
+  $("signerKP")?.addEventListener("change", ()=>{ if ($("signerKP").checked) { state.activeSigner="kp"; syncSignerRadios(); } });
+  $("rwMM")?.addEventListener("change", ()=>{ if ($("rwMM").checked) { state.activeSigner="mm"; syncSignerRadios(); } });
+  $("rwKP")?.addEventListener("change", ()=>{ if ($("rwKP").checked) { state.activeSigner="kp"; syncSignerRadios(); } });
+  syncSignerRadios();
+
+  // MetaMask / EVM connect/disconnect toggle (with real wallet choice)
+  $("btnMM")?.addEventListener("click", async ()=>{
+    try{
+      if (state.mm.connected){
+        const label = state.mm.walletLabel || "EVM wallet";
+        state.mm = { provider: mmProvider(), eth:"", bech32:"", chainId:CFG.chainIdEvmFallback, connected:false, pubkeyRecovered:false, walletLabel:"" };
+        $("btnMM").textContent="Connect";
+        await refreshBalances(); await loadMyRewards(); const body=$("myStakeBody"); if(body) body.innerHTML=`<tr><td colspan="5" class="center muted">Connect a wallet</td></tr>`;
+        setGlobal(`${label} disconnected`,"muted");
+        return;
+      }
+
+      const providers = detectEvmProviders();
+      if (!providers.length){
+        alert("No EVM wallet detected");
+        return;
+      }
+
+      const chosenProv = await chooseEvmProviderInteractive(providers);
+      if (!chosenProv) return; // user cancelled
+
+      const idx = providers.indexOf(chosenProv);
+      const desc = describeEvmProvider(chosenProv, idx === -1 ? 0 : idx);
+
+      const p = chosenProv;
+      state.mm.provider=p;
+      state.mm.walletLabel = desc.label;
+
+      const accs=await p.request({ method:"eth_requestAccounts" });
+      const eth=accs?.[0]; if (!eth) return alert("No account in selected wallet");
+      state.mm.eth=eth; state.mm.bech32=await ethToBech(eth);
+      try{ const cid=await p.request({method:"eth_chainId"}); state.mm.chainId=parseInt(cid,16)||CFG.chainIdEvmFallback; }catch{ state.mm.chainId=CFG.chainIdEvmFallback; }
+      state.mm.connected=true; $("btnMM").textContent="Logout";
+      await refreshBalances(); setGlobal(`${state.mm.walletLabel} connected (chainId ${state.mm.chainId})`,"status ok");
+      if (!p._genesisHandlersAttached){
+        p.on?.('accountsChanged', async (a)=>{ if(a?.[0]){ state.mm.eth=a[0]; state.mm.bech32=await ethToBech(state.mm.eth); state.mm.pubkeyRecovered=false; await refreshBalances(); await loadMyRewards(); await loadMyStake(); } });
+        p.on?.('chainChanged', async ()=>{ try{ const cid=await p.request({method:"eth_chainId"}); state.mm.chainId=parseInt(cid,16)||CFG.chainIdEvmFallback; }catch{} setGlobal(`${state.mm.walletLabel || "EVM wallet"} chain ${state.mm.chainId}`,"muted"); });
+        p._genesisHandlersAttached=true;
+      }
+    }catch(e){ alert(e?.message||e); }
+  });
+
+  // Keplr connect/disconnect toggle
+  $("btnKeplr")?.addEventListener("click", async ()=>{
+    try{
+      if (state.kp.connected){
+        state.kp = { client:null, address:"", osmoAddr:"", connected:false, osmoClient:null, osmoAddress:"" };
+        $("btnKeplr").textContent="Connect";
+        await refreshBalances(); await loadMyRewards(); const body=$("myStakeBody"); if(body) body.innerHTML=`<tr><td colspan="5" class="center muted">Connect a wallet</td></tr>`;
+        setGlobal(`Keplr disconnected`,"muted");
+        return;
+      }
+      if (!window.keplr) return alert("Keplr not detected");
+      try{
+        await window.keplr.experimentalSuggestChain({
+          chainId: CFG.chainIdCosmos, chainName: CFG.chainIdCosmos,
+          rpc: CFG.rpc, rest: CFG.lcd, bip44: { coinType: CFG.coinType },
+          bech32Config:{
+            bech32PrefixAccAddr: CFG.bech32, bech32PrefixAccPub: CFG.bech32+"pub",
+            bech32PrefixValAddr: CFG.bech32+"valoper", bech32PrefixValPub: CFG.bech32+"valoperpub",
+            bech32PrefixConsAddr: CFG.bech32+"valcons", bech32PrefixConsPub: CFG.bech32+"valconspub"
+          },
+          stakeCurrency:{ coinDenom: CFG.dispDenom, coinMinimalDenom: CFG.minDenom, coinDecimals: CFG.exp },
+          currencies:[{ coinDenom: CFG.dispDenom, coinMinimalDenom: CFG.minDenom, coinDecimals: CFG.exp }],
+          feeCurrencies:[{ coinDenom: CFG.dispDenom, coinMinimalDenom: CFG.minDenom, coinDecimals: CFG.exp }]
+        });
+      }catch(_){}
+      await window.keplr.enable(CFG.chainIdCosmos);
+      const signer = await window.getOfflineSignerAuto(CFG.chainIdCosmos);
+      const accs = await signer.getAccounts(); const me = accs[0]?.address;
+      const gasPrice = window.COSM.GasPrice.fromString(`${CFG.gasPrice}${CFG.minDenom}`);
+      const client = await window.COSM.SigningStargateClient.connectWithSigner(CFG.rpc, signer, { gasPrice });
+      let osmoAddr=""; try{ osmoAddr = bech32Recode(me, OSMO.bech32); }catch{}
+      state.kp = { ...state.kp, client, address: me, osmoAddr, connected: true };
+      $("btnKeplr").textContent="Logout";
+      await refreshBalances(); setGlobal(`Keplr connected`,"status ok");
+      await loadMyRewards(); await loadMyStake();
+    }catch(e){ alert(e?.message||e); }
+  });
+
+  // quick sends
+  $("mmSendBtn")?.addEventListener("click", async ()=>{
+    try{ if (!state.mm.connected) throw new Error("Connect EVM first");
+         const amt=$("mmSendAmt").value.trim(), to=$("mmSendTo").value.trim(); if(!amt||!to) throw new Error("Amount and recipient required");
+         const hash = await mmSendNative(amt, to);
+         $("mmSendNote").innerHTML=`<span class="status ok">Sent. TxHash: ${hash}</span>`; await refreshBalances();
+    }catch(e){ $("mmSendNote").innerHTML=`<span class="status err">${e?.message||e}</span>`; }
+  });
+  $("kpSendBtn")?.addEventListener("click", async ()=>{
+    try{ if (!state.kp.connected) throw new Error("Connect Keplr first");
+         const amt=$("kpSendAmt").value.trim(), to=$("kpSendTo").value.trim(); if(!amt||!to) throw new Error("Amount and recipient required");
+         const res = await kpAction("send",{ dst: to, amountL1: amt });
+         const code = res?.code ?? res?.tx_response?.code ?? 0;
+         if (code) throw new Error(res?.raw_log || res?.tx_response?.raw_log || `code ${code}`);
+         $("kpSendNote").innerHTML=`<span class="status ok">Sent.</span>`; await refreshBalances();
+    }catch(e){ $("kpSendNote").innerHTML=`<span class="status err">${e?.message||e}</span>`; }
+  });
+
+  // rewards
+  $("btnRewardsReload")?.addEventListener("click", async ()=>{ await loadMyRewards(); await loadMyStake(); });
+  $("myRewardsBody")?.addEventListener("click", async (e)=>{
+    const b = e.target instanceof Element ? e.target.closest("button[data-claim]") : null; if (!b) return;
+    const wallet = b.getAttribute("data-w"); const val = b.getAttribute("data-val");
+    try{
+      if (wallet==="Keplr"){ await kpClaimRewards([val]); }
+      else { await mmAction("claim", { val }); }
+      $("rewardsNote").innerHTML = `<span class="status ok">Claim broadcasted for ${wallet} @ ${val}</span>`;
+      await refreshBalances(); await loadMyRewards(); await loadMyStake();
+    }catch(err){
+      $("rewardsNote").innerHTML = `<span class="status err">${err?.message||err}</span>`;
+    }
+  });
+  $("btnClaimAll")?.addEventListener("click", async ()=>{
+    const active = state.activeSigner; const list = (active==="kp"? state.rewards.kp : state.rewards.mm) || [];
+    const valopers = list.filter(x=>x && x.dec && x.dec.num>0n).map(x=>x.valoper);
+    if (!valopers.length){ $("rewardsNote").textContent=`No rewards to claim for active signer.`; return; }
+    try{
+      if (active==="kp"){
+        const res = await kpClaimRewards(valopers);
+        const code = res?.code ?? res?.tx_response?.code ?? 0;
+        if (code) throw new Error(res?.raw_log || res?.tx_response?.raw_log || `code ${code}`);
+      } else {
+        for (const v of valopers){ await mmAction("claim",{ val: v }); }
+      }
+      $("rewardsNote").innerHTML=`<span class="status ok">Claimed rewards from ${valopers.length} validator(s) via ${active==='kp'?'Keplr':'EVM'}.</span>`;
+      await refreshBalances(); await loadMyRewards(); await loadMyStake();
+    }catch(err){
+      $("rewardsNote").innerHTML=`<span class="status err">${err?.message||err}</span>`;
+    }
+  });
+
+  // validators list actions
+  $("valsBody")?.addEventListener("click",(e)=>{
+    const b = e.target instanceof Element ? e.target.closest("button[data-act]") : null; if (!b) return;
+    const valoper=b.getAttribute("data-val"), act=b.getAttribute("data-act");
+    if (act==="stake"){ openManage({ action:"delegate", dst: valoper }); updateManageModalStats(); }
+    else if (act==="unstake"){ openManage({ action:"unstake", src: valoper }); updateManageModalStats(); }
+  });
+  $("valsJailedBody")?.addEventListener("click",(e)=>{
+    const b = e.target instanceof Element ? e.target.closest("button[data-act]") : null; if (!b) return;
+    const valoper=b.getAttribute("data-val"), act=b.getAttribute("data-act");
+    if (act==="redelegate"){ openManage({ action:"redelegate", src: valoper }); updateManageModalStats(); }
+    else if (act==="unstake"){ openManage({ action:"unstake", src: valoper }); updateManageModalStats(); }
+  });
+  $("btnReloadAll")?.addEventListener("click", async ()=>{
+    state.chainOutstandingDec = {num:0n, scale:0};
+    const outA = await streamValidators();
+    const outJ = await streamJailedValidators();
+    state.chainOutstandingDec = addDec(outA||{num:0n,scale:0}, outJ||{num:0n,scale:0});
+    await loadStats();
+  });
+
+  // my staking table
+  async function loadDelegations(addr){ const j=await rest(`/cosmos/staking/v1beta1/delegations/${addr}`,{"pagination.limit":"500"}); return j.delegation_responses||[]; }
+  function renderMyStakingRows(rows, tag){
+    const body=$("myStakeBody"); if(!body) return;
+    if (!rows.length){ const tr=document.createElement("tr");
+      tr.innerHTML=`<td>${tag}</td><td class="muted">No staking yet</td><td class="right">—</td><td class="right">—</td>
+                    <td class="right"><button class="btnx small" data-m-add="${tag}">Delegate</button></td>`;
+      body.appendChild(tr); return; }
+    rows.forEach(r=>{
+      const v=r.delegation?.validator_address||"—";
+      const name = state.validatorsActive.find(x=>x.operator_address===v)?.description?.moniker
+                || state.validatorsJailed.find(x=>x.operator_address===v)?.description?.moniker
+                || v;
+      const amt=fmtL1_fromIntEl1(r.balance?.amount||"0", 6);
+      const myReward = (()=>{ const list = tag==="EVM" ? state.rewards.mm : state.rewards.kp; const found=list.find(x=>x.valoper===v); return found?fmtDecEl1ToL1(found.dec,6):`0.000000 ${CFG.dispDenom}`; })();
+      const tr=document.createElement("tr");
+      tr.innerHTML=`<td>${tag}</td>
+                    <td>${name}<div class="muted mono">${v}</div></td>
+                    <td class="right">${amt}</td>
+                    <td class="right">${myReward}</td>
+                    <td class="right">
+                      <button class="btnx small" data-stk="delegate" data-val="${v}" data-w="${tag}">Delegate</button>
+                      <button class="btnx small" data-stk="redelegate" data-val="${v}" data-w="${tag}">Redelegate</button>
+                      <button class="btnx small" data-stk="unstake" data-val="${v}" data-w="${tag}">Unstake</button>
+                      <button class="btnx small" data-claim-row="${v}" data-w="${tag}">Claim rewards</button>
+                    </td>`;
+      body.appendChild(tr);
+    });
+  }
+  async function loadMyStake(){
+    const body=$("myStakeBody"); if (!body) return; body.innerHTML="";
+    if (state.mm.bech32){ renderMyStakingRows(await loadDelegations(state.mm.bech32), "EVM"); }
+    if (state.kp.address){ renderMyStakingRows(await loadDelegations(state.kp.address), "Keplr"); }
+    if (!state.mm.bech32 && !state.kp.address){ body.innerHTML = `<tr><td colspan="5" class="center muted">Connect a wallet</td></tr>`; }
+  }
+  $("myStakeBody")?.addEventListener("click", async (e)=>{
+    const el = e.target instanceof Element ? e.target : null; if (!el) return;
+    const claimBtn = el.closest("button[data-claim-row]");
+    if (claimBtn){
+      const wallet = claimBtn.getAttribute("data-w");
+      const val = claimBtn.getAttribute("data-claim-row");
+      try{
+        if (wallet==="Keplr"){ await kpClaimRewards([val]); }
+        else { await mmAction("claim", { val }); }
+        alert("Rewards claim broadcasted");
+        await refreshBalances(); await loadMyRewards(); await loadMyStake();
+      }catch(err){ alert(err?.message||err); }
+      return;
+    }
+    const manageBtn = el.closest("button[data-stk],button[data-m-add]");
+    if (!manageBtn) return;
+    const wallet = manageBtn.getAttribute("data-w") || manageBtn.getAttribute("data-m-add");
+    const act = manageBtn.getAttribute("data-stk") || "delegate";
+    const val = manageBtn.getAttribute("data-val") || "";
+    openManage({ action: act, wallet, src: act!=="delegate"?val:"", dst: act==="delegate"?val:"" });
+    updateManageModalStats();
+  });
+  $("btnLoadMyStake")?.addEventListener("click", ()=>loadMyStake());
+
+  // unbondings
+  $("btnLoadMyUnbond")?.addEventListener("click", async ()=>{
+    const rows=[]; const body=$("myUnbondBody"); if(!body) return;
+    if (state.mm.bech32){ const r=(await rest(`/cosmos/staking/v1beta1/delegators/${state.mm.bech32}/unbonding_delegations`,{"pagination.limit":"500"})).unbonding_responses||[]; r.forEach(x=>x._tag="EVM"); rows.push(...r); }
+    if (state.kp.address){ const r=(await rest(`/cosmos/staking/v1beta1/delegators/${state.kp.address}/unbonding_delegations`,{"pagination.limit":"500"})).unbonding_responses||[]; r.forEach(x=>x._tag="Keplr"); rows.push(...r); }
+    body.innerHTML=""; if (!rows.length){ body.innerHTML=`<tr><td colspan="4" class="center muted">No unbondings</td></tr>`; return; }
+    state.unbondingCountdowns=[];
+    rows.forEach(row=>{
+      const valoper=row.validator_address;
+      const name= state.validatorsActive.find(x=>x.operator_address===valoper)?.description?.moniker
+               || state.validatorsJailed.find(x=>x.operator_address===valoper)?.description?.moniker || valoper;
+      (row.entries||[]).forEach(en=>{
+        const amt=fmtL1_fromIntEl1(en.balance||"0", 6); const end=new Date(en.completion_time).getTime(); const id=`ub_${valoper}_${en.creation_height}`;
+        const tr=document.createElement("tr");
+        tr.innerHTML=`<td>${row._tag}</td><td>${name}<div class="muted mono">${valoper}</div></td><td class="right">${amt}</td><td class="right" id="${id}">—</td>`;
+        body.appendChild(tr); state.unbondingCountdowns.push({id,end});
+      });
+    });
+    const tick=()=>{ const now=Date.now(); state.unbondingCountdowns.forEach(x=>{ const el=document.getElementById(x.id);
+      if (el){ const ms=x.end-now; if (ms<=0) el.textContent="done"; else { const s=Math.floor(ms/1000); const d=Math.floor(s/86400), h=Math.floor((s%86400)/3600), m=Math.floor((s%3600)/60); el.textContent=`${d}d ${h}h ${m}m`; } } }); };
+    tick(); setInterval(tick,30_000);
+  });
+
+  // manage modal open + submit
+  function openManage({ action="delegate", src="", dst="", wallet="" }={}){
+    const root = $("modalRoot");
+    const f = { action:$("mAction"), src:$("mSrc"), dst:$("mDst"), amount:$("mAmount"),
+                mm:$("mwMM"), kp:$("mwKP"), status:$("mStatus") };
+    if (!f.action) return;
+    f.action.value=action; f.src.value=src; f.dst.value=dst;
+
+    const desired = wallet ? (wallet.toLowerCase().startsWith("k") ? "kp" : "mm") : (state.activeSigner || "mm");
+    if (desired==="kp"){ f.mm.checked=false; f.kp.checked=true; } else { f.mm.checked=true; f.kp.checked=false; }
+
+    f.amount.value=""; f.status.textContent="";
+    const applyVis=()=>{ const a=f.action.value;
+      f.src.parentElement.style.display = (a==="redelegate" || a==="unstake") ? "flex" : "none";
+      f.dst.parentElement.style.display = (a==="delegate" || a==="redelegate") ? "flex" : "none"; };
+    if (!f.action._bound){ f.action.addEventListener("change", applyVis); f.action._bound=true; }
+    const btnCancel = $("mCancel"); if (btnCancel && !btnCancel._bound){ btnCancel.onclick=()=>{ root.style.display="none"; }; btnCancel._bound=true; }
+    applyVis(); root.style.display="flex";
+  }
+  $("mSubmit")?.addEventListener("click", async ()=>{
+    try{
+      const act=$("mAction").value; const src=$("mSrc").value||""; const dst=$("mDst").value||""; const amountL1=$("mAmount").value.trim(); if(!amountL1) throw new Error("Enter amount");
+      const wallet = $("mwMM").checked ? "mm" : "kp";
+      if (wallet==="mm"){
+        if (act==="send"){ throw new Error("Use the quick Send form under EVM card."); }
+        await mmAction(act,{src,dst,amountL1});
+      } else {
+        await kpAction(act,{src,dst,amountL1});
+      }
+      if (act==="delegate" && dst){
+        const j = await rest(`/cosmos/staking/v1beta1/validators/${dst}`); const v=j?.validator||{};
+        const name = v?.description?.moniker || dst; const totalNow = fmtL1_fromIntEl1(v?.tokens||"0", 3);
+        const humanAmt = `${amountL1} ${CFG.dispDenom}`;
+        const msg = `Successfully staked ${humanAmt} at validator ${name}, total stake at that validator is ${totalNow} now.`;
+        $("mStatus").innerHTML = `<span class="status ok">${msg}</span>`; alert(msg);
+      } else { $("mStatus").innerHTML = `<span class="status ok">Broadcasted</span>`; alert("Success!"); }
+      $("modalRoot").style.display="none";
+      await refreshBalances(); await loadMyRewards(); await loadMyStake();
+
+      state.chainOutstandingDec = {num:0n, scale:0};
+      const outA = await streamValidators();
+      const outJ = await streamJailedValidators();
+      state.chainOutstandingDec = addDec(outA||{num:0n,scale:0}, outJ||{num:0n,scale:0});
+      await loadStats();
+    }catch(e){ $("mStatus").innerHTML = `<span class="status err">${e?.message||e}</span>`; }
+  });
+  ["mAction","mSrc","mDst","mwMM","mwKP"].forEach(id=>{
+    const el=$(id); if(!el) return;
+    const evt = id==="mAction" || id==="mSrc" || id==="mDst" ? "change" : "click";
+    el.addEventListener(evt, ()=>updateManageModalStats());
+  });
+
+  /* ===== Initial boot ===== */
+  try{
+    state.chainOutstandingDec = {num:0n, scale:0};
+    const outA = await streamValidators();
+    const outJ = await streamJailedValidators();
+    state.chainOutstandingDec = addDec(outA||{num:0n,scale:0}, outJ||{num:0n,scale:0});
+    setGlobal("Ready");
+  }catch{ setGlobal("Ready (validator fallback)","status warn"); }
+  await loadMyRewards();
+  await loadMyStake();
+  pingEndpoints();
+});
+</script>
+
+<script>
+(function(){
+  // If this page is opened directly (not inside an iframe), do nothing.
+  if (window === window.parent) return;
+
+  function markEmbedded(){
+    document.documentElement.classList.add('gl1-embedded');
+    if (document.body) document.body.classList.add('gl1-embedded');
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', markEmbedded, { once: true });
+  } else {
+    markEmbedded();
+  }
+
+  function sendHeight(){
+    var doc  = document;
+    var body = doc.body;
+    var html = doc.documentElement;
+    if (!body || !html) return;
+
+    var height = Math.max(
+      body.scrollHeight,
+      body.offsetHeight,
+      html.clientHeight,
+      html.scrollHeight,
+      html.offsetHeight
+    );
+
+    window.parent.postMessage(
+      {
+        type: 'gl1-iframe-resize',
+        height: height
+      },
+      '*'
+    );
+  }
+
+  window.addEventListener('load', function(){
+    sendHeight();
+    setTimeout(sendHeight, 300);
+    setTimeout(sendHeight, 1000);
+  });
+
+  window.addEventListener('resize', function(){
+    sendHeight();
+  });
+
+  if ('ResizeObserver' in window){
+    var ro = new ResizeObserver(function(){
+      sendHeight();
+    });
+    ro.observe(document.body);
+  }
+})();
+</script>
+</body>
+</html>
