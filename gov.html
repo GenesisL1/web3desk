@@ -1,0 +1,1568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GenesisL1 — Governance</title>
+
+<!-- Tailwind (visual parity with staking/ibc pages) -->
+<script src="https://cdn.tailwindcss.com"></script>
+
+<style>
+  :root{ --ink:#0f172a; --muted:#64748b; --ring:#e5e7eb; --card:#ffffff; --bg:#ffffff; }
+  html,body{height:100%}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+  }
+  .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;}
+  .card{
+    border-radius: 14px;
+    background:var(--card);
+    border:1px solid var(--ring);
+
+  }
+  .heading{border-bottom:1px solid var(--ring); background:#fff}
+  .pill{
+    font-size:.78rem;
+    border:1px solid var(--ring);
+    border-radius:9999px;
+    padding:.25rem .6rem;
+    background:#f8fafc;
+    display:inline-flex;
+    align-items:center;
+    gap:.4rem
+  }
+  .btnx{
+    background:#fff;
+    color:#0c1017;
+    border:1px solid var(--ring);
+    border-radius:10px;
+    padding:.55rem .9rem;
+    font:inherit;
+    cursor:pointer
+  }
+  .btnx.primary{
+    background:#2563eb;
+    color:#fff;
+    border-color:#2563eb;
+    box-shadow:0 6px 10px rgba(37,99,235,.12)
+  }
+  .btnx.small{ padding:.4rem .65rem }
+
+  /* Wallet connect / logout (Google-like light blue) */
+  .wallet-btn{
+    background:#e8f0fe;
+    border-color:#d2e3fc;
+    color:#174ea6;
+    box-shadow:0 1px 2px rgba(15,23,42,.04);
+  }
+  .wallet-btn:hover{ background:#d2e3fc; }
+
+  input.sleek-core,select.sleek-core,textarea.sleek-core{
+    background:#fff;
+    color:#0c1017;
+    border:1px solid var(--ring);
+    border-radius:10px;
+    padding:.55rem .7rem;
+    font:inherit;
+    width:100%
+  }
+  textarea.sleek-core{ min-height:110px; resize:vertical }
+  input.sleek-core::placeholder{ color:#9ca3af }
+  input.sleek-core[readonly]{ background:#f9fafb }
+
+  #globalStatus {
+    display:none;
+    align-items:center;
+    gap:.5rem;
+    font-size:.9rem;
+    padding:8px 10px;
+    border-radius:10px;
+    background:#f6faff;
+    border:1px solid #e4efff;
+    color:#155ec0;
+    box-shadow:0 6px 14px rgba(39,141,255,.08)
+  }
+  .status.ok{ color:#059669 }
+  .status.err{ color:#b91c1c }
+  .status.warn{ color:#b45309 }
+
+  .row-card{
+    border:1px solid var(--ring);
+    border-radius:12px;
+    padding:14px;
+    margin-bottom:12px;
+    background:#fff
+  }
+  .badge{
+    font-size:.72rem;
+    border-radius:9999px;
+    padding:.2rem .5rem;
+    border:1px solid var(--ring);
+    background:#f8fafc
+  }
+  .badge.voting{ background:#eef2ff; color:#3730a3; border-color:#e0e7ff }
+  .badge.deposit{ background:#fff7ed; color:#9a3412; border-color:#ffedd5 }
+  .badge.passed{ background:#ecfdf5; color:#065f46; border-color:#d1fae5 }
+  .badge.rejected{ background:#fef2f2; color:#991b1b; border-color:#fee2e2 }
+  .badge.failed{ background:#fef3c7; color:#92400e; border-color:#fde68a }
+  .bar{height:9px; border-radius:9999px; background:#f1f5f9; overflow:hidden}
+  .bar>div{height:100%}
+
+  /* Layout shell: center and cap at 1600px */
+  .shell{ max-width:1600px; margin:0 auto; }
+
+  /* EVM wallet chooser modal (same style as staking) */
+  .modal-backdrop{
+    position:fixed; inset:0;
+    background:rgba(0,0,0,.35);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:16px;
+    z-index:50;
+  }
+  /* FIX: when embedded in iframe, keep modal near the top (same as staking page) */
+  .gl1-embedded .modal-backdrop{
+    align-items:flex-start;
+    justify-content:center;
+    padding-top:clamp(40px, 15vh, 80px);
+  }
+
+  .modal{
+    width:min(560px, 96%);
+    background:#fff;
+    border-radius:14px;
+    border:1px solid var(--ring);
+    box-shadow:0 1px 2px rgba(0,0,0,.04),0 2px 10px rgba(17,24,39,.05);
+    padding:16px;
+  }
+  .modal .title{ font-weight:700; font-size:16px }
+  .modal .footer{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-top:12px;
+  }
+</style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+<main class="w-full flex-1">
+  <div class="shell px-4 md:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- Global status -->
+    <div id="globalStatus" class="card px-3 py-2"></div>
+
+    <!-- Wallets -->
+    <section class="card p-4">
+      <div class="flex items-center justify-between">
+        <div class="font-semibold">Wallet</div>
+        <div class="text-xs text-gray-500">Vote with <strong>EVM wallet</strong> (vote only) or <strong>Keplr</strong></div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+        <!-- EVM -->
+        <div class="card p-4">
+          <div class="flex items-center justify-between">
+            <h3 class="font-semibold">EVM wallet</h3>
+            <button id="btnMM" class="btnx wallet-btn small">Connect</button>
+          </div>
+          <div class="text-sm mt-1"><span class="text-gray-500">EVM:</span> <span id="mmAddr" class="mono"></span></div>
+          <div class="text-sm"><span class="text-gray-500">Cosmos:</span> <span id="mmCosmos" class="mono"></span></div>
+          <div class="mt-1 text-2xl" id="mmBal">—</div>
+
+          <!-- Voting power -->
+          <div class="mt-2 text-sm text-gray-600">
+            <div><span class="text-gray-500">Voting power:</span> <span id="mmVpAbs" class="mono">—</span></div>
+            <div><span class="text-gray-500">Total votes:</span> <span id="mmVpTotal" class="mono">—</span></div>
+            <div><span class="text-gray-500">Share:</span> <span id="mmVpPct" class="mono">—</span></div>
+          </div>
+
+          <div class="text-xs text-gray-500 mt-2">
+            Uses EIP-712 (Tharsis) for governance voting where supported.<br/>
+            Note: deposits + proposal submission require Keplr.
+          </div>
+        </div>
+
+        <!-- Keplr -->
+        <div class="card p-4">
+          <div class="flex items-center justify-between">
+            <h3 class="font-semibold">Keplr</h3>
+            <button id="btnKeplr" class="btnx wallet-btn small">Connect</button>
+          </div>
+          <div class="text-sm mt-1"><span class="text-gray-500">Cosmos:</span> <span id="kpAddr" class="mono"></span></div>
+          <div class="text-sm"><span class="text-gray-500">EVM (derived):</span> <span id="kpEvm" class="mono"></span></div>
+          <div class="mt-1 text-2xl" id="kpBal">—</div>
+
+          <!-- Voting power -->
+          <div class="mt-2 text-sm text-gray-600">
+            <div><span class="text-gray-500">Voting power:</span> <span id="kpVpAbs" class="mono">—</span></div>
+            <div><span class="text-gray-500">Total votes:</span> <span id="kpVpTotal" class="mono">—</span></div>
+            <div><span class="text-gray-500">Share:</span> <span id="kpVpPct" class="mono">—</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Gov API badge -->
+      <div class="mt-3 text-xs text-gray-500">
+        Gov API: <span id="govApiBadge" class="mono">detecting…</span>
+      </div>
+    </section>
+
+    <!-- Submit Governance Proposal (collapsible, collapsed by default) -->
+    <section class="card p-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <div class="font-semibold">Submit Governance Proposal</div>
+          <div class="text-xs text-gray-500">Text or Community Pool Spend • Initial Deposit • <strong>Keplr only</strong></div>
+        </div>
+        <button id="propToggle" class="btnx small text-xs">Show form</button>
+      </div>
+
+      <!-- Collapsible body -->
+      <div id="propSectionBody" class="mt-3 hidden">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div>
+            <label class="text-xs text-gray-500">Title</label>
+            <input id="propTitle" class="sleek-core" placeholder="Short title…" />
+          </div>
+          <div>
+            <label class="text-xs text-gray-500">Initial Deposit (in L1)</label>
+            <input id="propDeposit" class="sleek-core" placeholder="e.g. 10.0" />
+          </div>
+          <div>
+            <label class="text-xs text-gray-500">Proposal Type</label>
+            <select id="propType" class="sleek-core">
+              <option value="text">Text proposal</option>
+              <option value="cpsp">Community pool spend</option>
+            </select>
+          </div>
+
+          <div class="flex items-end gap-2">
+            <button id="btnSubmitProp" class="btnx small">Submit via Keplr</button>
+          </div>
+
+          <div class="md:col-span-3">
+            <label class="text-xs text-gray-500">Description</label>
+            <textarea id="propDesc" class="sleek-core" placeholder="Explain the rationale, context, references…"></textarea>
+          </div>
+        </div>
+
+        <!-- Extra fields for CommunityPoolSpendProposal -->
+        <div id="cpspExtra" class="md:col-span-3 mt-3 hidden">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <label class="text-xs text-gray-500">Recipient address (bech32, e.g. genesis1…)</label>
+              <input id="propRecipient" class="sleek-core" placeholder="genesis1…" />
+            </div>
+            <div>
+              <label class="text-xs text-gray-500">Amount from community pool (in L1)</label>
+              <input id="propAmount" class="sleek-core" placeholder="e.g. 1000.0" />
+            </div>
+            <div class="flex items-end text-xs text-gray-500">
+              <p>Requested amount will be taken from the community pool and sent to the recipient if the proposal passes.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between mt-3 pt-3 border-t border-slate-200">
+          <div id="minDepTip" class="text-xs text-gray-500">Min deposit: —</div>
+          <div id="submitNote" class="text-sm text-gray-600"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Proposals -->
+    <section class="card p-4">
+      <div class="flex items-center justify-between mb-2">
+        <div class="font-semibold">Proposals</div>
+      </div>
+
+      <div id="proposalsBox" class="mt-2"></div>
+
+      <!-- Pagination at bottom -->
+      <div class="mt-4 pt-3 border-t border-slate-200 flex items-center justify-between">
+        <div class="text-xs text-gray-500">Pagination</div>
+        <div class="flex items-center gap-2">
+          <button id="btnNewer" class="btnx small" disabled>← Newer</button>
+          <div id="pageInfo" class="text-xs text-gray-500">Page 1</div>
+          <button id="btnOlder" class="btnx small" disabled>Older →</button>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<!-- EVM Wallet Choice Modal (for multiple wallets, same as staking) -->
+<div id="evmWalletModal" class="modal-backdrop">
+  <div class="modal">
+    <div class="title">Choose EVM wallet</div>
+    <div class="muted text-sm mt-1">
+      Multiple EVM-compatible wallets were detected. Choose which one to use for governance voting.
+    </div>
+    <div id="evmWalletOptions" class="mt-3 space-y-2"></div>
+    <div class="footer">
+      <div class="muted text-xs">You can change this later by disconnecting and reconnecting.</div>
+      <div class="flex gap-2">
+        <button class="btnx" id="evmWalletCancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- UMD libs (keep parity) -->
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.12.1/dist/ethers.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@hanchon/evmosjs@0.3.0/lib/evmosjs.min.js"></script>
+
+<!-- ESM helpers -->
+<script type="module">
+  import { bech32 } from "https://cdn.jsdelivr.net/npm/bech32@2.0.0/+esm";
+  window.BECH32 = bech32;
+</script>
+<script type="module">
+  import { SigningStargateClient, GasPrice } from "https://cdn.jsdelivr.net/npm/@cosmjs/stargate@0.36.0/+esm";
+  const coin = (amount, denom)=>({ amount:String(amount), denom });
+  window.COSM = { SigningStargateClient, GasPrice, coin };
+</script>
+
+<!-- App -->
+<script type="module">
+/* =========================
+   CONFIG
+========================= */
+const CFG = {
+  chainIdCosmos: "genesis_29-2",
+  chainIdEvmFallback: 29,
+  lcd: "https://1317.genesisl1.org/",
+  rpc: "https://26657.genesisl1.org/",
+  bech32: "genesis",
+  coinType: 60,          // Ethermint-based chain (MetaMask-friendly, Keplr eth-path)
+  minDenom: "el1",
+  dispDenom: "L1",
+  exp: 18,
+  gasPrice: "70000000000",
+  gasLimit: 600000,
+  evmRpc: "https://rpc.genesisl1.org"
+};
+
+/* =========================
+   SAFETY: never show a blank page
+========================= */
+(function attachFatalErrorGuard(){
+  function showFatal(err){
+    console.error(err);
+    const host = document.getElementById("proposalsBox") || document.body;
+    const box = document.createElement("div");
+    box.style.padding = "12px";
+    box.style.color = "#b91c1c";
+    box.style.background = "#fff1f2";
+    box.style.border = "1px solid #fecaca";
+    box.style.margin = "16px";
+    box.style.borderRadius = "8px";
+    box.style.fontFamily = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+    box.textContent = "Error: " + (err?.message || String(err));
+    host.replaceChildren(box);
+  }
+  window.addEventListener("error",  e => showFatal(e.error || new Error(e.message)));
+  window.addEventListener("unhandledrejection", e => showFatal(e.reason || new Error("Unknown async error")));
+})();
+
+/* =========================
+   STATE / DOM
+========================= */
+const $ = (id)=>document.getElementById(id);
+
+const state = {
+  kp:{ connected:false, addr:"", client:null },
+  mm:{ connected:false, provider:null, evmAddr:"", cosmosAddr:"", chainId:CFG.chainIdEvmFallback, pubkeyRecovered:false, walletLabel:"" },
+  govApi:"detecting", // 'v1' | 'v1beta1'
+  proposals: [],
+  page: { nextKey:null, prevKeys:[], filter:"ALL", limit:20, reverse:true },
+  total: null,
+  pageNo: 1,
+  pageCache: {},
+  pageKeys: {},
+  hasMore: true,
+  minDepositInt: null
+};
+
+/* =========================
+   EIP-6963 / multi-EVM discovery (same pattern as staking page)
+========================= */
+const evm6963 = { providers: [] };
+function initEip6963Discovery(){
+  if (typeof window === "undefined") return;
+  const seen = new Set();
+  window.addEventListener("eip6963:announceProvider", (event)=>{
+    const d = event && event.detail;
+    if (!d || !d.provider || typeof d.provider.request !== "function") return;
+    if (seen.has(d.provider)) return;
+    seen.add(d.provider);
+    evm6963.providers.push(d);
+  });
+  try{ window.dispatchEvent(new Event("eip6963:requestProvider")); }catch(_){}
+}
+function getEip6963Providers(){ return evm6963.providers.slice(); }
+
+function detectEvmProviders(){
+  const out = [];
+  const seen = new Set();
+  const add = (p)=>{
+    if (!p || typeof p.request !== "function") return;
+    if (seen.has(p)) return;
+    seen.add(p);
+    out.push(p);
+  };
+
+  getEip6963Providers().forEach(d=>add(d.provider));
+
+  const eth = window.ethereum;
+  if (eth){
+    if (Array.isArray(eth.providers) && eth.providers.length) eth.providers.forEach(add);
+    else add(eth);
+  }
+
+  add(window.rabby);
+  add(window.trustwallet);
+  add(window.coinbaseWalletExtension);
+
+  return out;
+}
+function describeEvmProvider(p, index){
+  if (!p) return { label: `EVM wallet ${index+1}`, detail: "" };
+
+  const announced = getEip6963Providers().find(d => d.provider === p);
+  if (announced?.info?.name){
+    return { label: announced.info.name, detail: announced.info.rdns || "" };
+  }
+
+  const detailFlags = [];
+  let label = `EVM wallet ${index+1}`;
+
+  if (p.isRabby || p._isRabby || (window.rabby && p === window.rabby)) label = "Rabby Wallet";
+  else if (p.isMetaMask){ label="MetaMask"; detailFlags.push("EIP-712"); }
+  else if (p.isTrust || p.isTrustWallet || p === window.trustwallet) label="Trust Wallet";
+  else if (p.isCoinbaseWallet || p.isWalletLink || p === window.coinbaseWalletExtension) label="Coinbase Wallet";
+  else if (p.isBraveWallet) label="Brave Wallet";
+  else if (p.isFrame) label="Frame";
+  else if (p.isTally) label="Tally Ho";
+  else if (p.isXDEFI) label="XDEFI";
+
+  return { label, detail: detailFlags.join(" • ") };
+}
+async function chooseEvmProviderInteractive(candidates){
+  if (!candidates?.length) return null;
+  if (candidates.length === 1) return candidates[0];
+
+  const root = $("evmWalletModal");
+  const box = $("evmWalletOptions");
+  const cancel = $("evmWalletCancel");
+
+  if (!root || !box){
+    const msg = "Multiple EVM wallets were detected. Choose one by number:\n" +
+      candidates.map((p,i)=>`${i+1}. ${describeEvmProvider(p,i).label}`).join("\n");
+    const choice = Number(prompt(msg,"1") || "1");
+    const idx = Math.max(1, Math.min(candidates.length, choice)) - 1;
+    return candidates[idx];
+  }
+
+  return new Promise((resolve)=>{
+    root.style.display="flex";
+    box.innerHTML = "";
+    candidates.forEach((prov, idx)=>{
+      const d = describeEvmProvider(prov, idx);
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btnx w-full flex justify-between items-center";
+      btn.innerHTML = `<span>${d.label}</span>` + (d.detail ? `<span class="text-xs text-gray-500">${d.detail}</span>` : "");
+      btn.addEventListener("click", ()=>{ root.style.display="none"; resolve(prov); });
+      box.appendChild(btn);
+    });
+    cancel && (cancel.onclick = ()=>{ root.style.display="none"; resolve(null); });
+  });
+}
+
+/* =========================
+   UTILS
+========================= */
+function setGlobal(msg, cls=""){
+  const el=$("globalStatus");
+  el.style.display="flex";
+  el.innerHTML = `<span class="${cls}">${escapeHtml(msg)}</span>`;
+}
+function clearGlobal(){
+  const el=$("globalStatus");
+  el.style.display="none";
+  el.textContent="";
+}
+
+function addCommas(x){ return x.replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+const TEN = (n)=> BigInt(10) ** BigInt(n);
+
+function fmtL1_fromIntEl1(intStr, decimals=6){
+  try{
+    const n=BigInt(intStr||"0");
+    const q=n/TEN(CFG.exp);
+    const r=(n%TEN(CFG.exp)).toString().padStart(CFG.exp,'0').slice(0,decimals);
+    return `${addCommas(q.toString())}.${r} ${CFG.dispDenom}`;
+  }catch{ return `0.${'0'.repeat(decimals)} ${CFG.dispDenom}`; }
+}
+function toBaseUnitsBI(l1Str){
+  const s = String(l1Str||"").trim(); if (!s) return 0n;
+  const m = s.match(/^(-)?(\d+)(?:\.(\d+))?$/); if (!m) throw new Error("Invalid amount");
+  const neg=!!m[1], i=m[2], f=(m[3]||"").slice(0,CFG.exp);
+  const fracPadded = f + "0".repeat(CFG.exp - f.length);
+  const bi = BigInt(i) * TEN(CFG.exp) + BigInt(fracPadded||"0");
+  return neg ? -bi : bi;
+}
+function fmtTime(s){ if(!s) return "—"; const d=new Date(s); return d.toLocaleString(); }
+function pct(num,den){ if(den===0n) return "0%"; const p = Number((num*10000n)/den)/100; return `${p.toFixed(2)}%`; }
+function hexToBytes(h){ const c=h.replace(/^0x/,''); return Uint8Array.from(c.match(/.{1,2}/g).map(b=>parseInt(b,16))); }
+function evmToBech32(hex, prefix=CFG.bech32){ return BECH32.encode(prefix, BECH32.toWords(hexToBytes(hex))); }
+function bech32ToEvm(addr){
+  try{
+    const dec = BECH32.decode(addr);
+    const bytes = BECH32.fromWords(dec.words);
+    return '0x'+Array.from(bytes).map(b=>b.toString(16).padStart(2,'0')).join('');
+  }catch{
+    return "";
+  }
+}
+function escapeHtml(s){ return String(s||"").replace(/[&<>"']/g, m=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m])); }
+
+/* --- bytes + tx raw encoder --- */
+function encUvarint(n){ const out=[]; while (n > 127){ out.push((n & 0x7f) | 0x80); n >>>= 7; } out.push(n); return new Uint8Array(out); }
+function concatBytes(arrs){ let len=0; for (const a of arrs) len+=a.length; const out=new Uint8Array(len); let o=0; for(const a of arrs){ out.set(a,o); o+=a.length; } return out; }
+function toBytes(x){
+  if (x instanceof Uint8Array) return x;
+  if (Array.isArray(x)) return Uint8Array.from(x);
+  if (typeof x === "string"){ const b=atob(x); const u=new Uint8Array(b.length); for(let i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return u; }
+  return new Uint8Array();
+}
+function encodeTxRawLocal(txRaw){
+  const body = toBytes(txRaw.bodyBytes ?? txRaw.body_bytes ?? txRaw.body ?? []);
+  const auth = toBytes(txRaw.authInfoBytes ?? txRaw.auth_info_bytes ?? txRaw.authInfo ?? []);
+  const sigs = Array.isArray(txRaw.signatures) ? txRaw.signatures.map(toBytes) : [];
+  const parts = [
+    new Uint8Array([0x0a]), encUvarint(body.length), body,
+    new Uint8Array([0x12]), encUvarint(auth.length), auth
+  ];
+  for (const s of sigs){ parts.push(new Uint8Array([0x1a]), encUvarint(s.length), s); }
+  return concatBytes(parts);
+}
+function utf8Bytes(str){ return new TextEncoder().encode(String(str||"")); }
+
+/** Encode cosmos.gov.v1beta1.TextProposal { string title = 1; string description = 2; } */
+function encodeTextProposalBytes(title, description){
+  const t = utf8Bytes(title||"");
+  const d = utf8Bytes(description||"");
+  return concatBytes([
+    Uint8Array.from([0x0a]), encUvarint(t.length), t,
+    Uint8Array.from([0x12]), encUvarint(d.length), d
+  ]);
+}
+/** CommunityPoolSpendProposal encoder for Keplr path */
+function encodeCommunityPoolSpendProposalBytes(title, description, recipient, amountIntStr){
+  const t = utf8Bytes(title||"");
+  const d = utf8Bytes(description||"");
+  const r = utf8Bytes(recipient||"");
+
+  const denomBytes = utf8Bytes(CFG.minDenom);
+  const amtBytes   = utf8Bytes(String(amountIntStr||"0"));
+
+  const coinMsg = concatBytes([
+    Uint8Array.from([0x0a]), encUvarint(denomBytes.length), denomBytes,
+    Uint8Array.from([0x12]), encUvarint(amtBytes.length), amtBytes
+  ]);
+
+  return concatBytes([
+    Uint8Array.from([0x0a]), encUvarint(t.length), t,
+    Uint8Array.from([0x12]), encUvarint(d.length), d,
+    Uint8Array.from([0x1a]), encUvarint(r.length), r,
+    Uint8Array.from([0x22]), encUvarint(coinMsg.length), coinMsg
+  ]);
+}
+
+/* =========================
+   REST
+========================= */
+async function rest(path, params={}){
+  const url=new URL(CFG.lcd.replace(/\/$/,"")+path);
+  for (const [k,v] of Object.entries(params)) if (v!=null) url.searchParams.set(k,v);
+  const r=await fetch(url.toString(),{headers:{Accept:"application/json"}});
+  if(!r.ok) throw new Error(`${r.status} ${r.statusText} (${path})`);
+  return await r.json();
+}
+
+/* =========================
+   GOV API + PARAMS
+========================= */
+async function detectGovApi(){
+  $("govApiBadge").textContent = "detecting…";
+  try{
+    const r = await rest(`/cosmos/gov/v1/proposals`,{"pagination.limit":"1"});
+    if (r?.proposals){ state.govApi="v1"; $("govApiBadge").textContent = "v1"; return; }
+  }catch{}
+  try{
+    const r2 = await rest(`/cosmos/gov/v1beta1/proposals`,{"pagination.limit":"1"});
+    if (r2?.proposals){ state.govApi="v1beta1"; $("govApiBadge").textContent = "v1beta1"; return; }
+  }catch{}
+  state.govApi="v1beta1";
+  $("govApiBadge").textContent = "v1beta1";
+}
+async function loadMinDepositHint(){
+  const tip = $("minDepTip"); if(!tip) return;
+  tip.textContent = "Min deposit: …";
+  const tries = [
+    ["/cosmos/gov/v1beta1/params/deposit", j => j?.deposit_params?.min_deposit || j?.min_deposit],
+    ["/cosmos/gov/v1beta1/params",         j => j?.params?.deposit_params?.min_deposit || j?.deposit_params?.min_deposit],
+    ["/cosmos/gov/v1/params/deposit",      j => j?.deposit_params?.min_deposit || j?.min_deposit],
+    ["/cosmos/gov/v1/params",              j => j?.params?.deposit_params?.min_deposit || j?.deposit_params?.min_deposit],
+  ];
+  for (const [path, pick] of tries){
+    try{
+      const r = await rest(path);
+      const list = pick(r);
+      if (Array.isArray(list) && list.length){
+        const coin = list.find(c=>c.denom===CFG.minDenom) || list[0];
+        if (coin?.amount){
+          state.minDepositInt = String(coin.amount);
+          tip.textContent = `Min deposit: ${fmtL1_fromIntEl1(coin.amount, 6)}`;
+          return;
+        }
+      }
+    }catch{}
+  }
+  tip.textContent = "Min deposit: —";
+}
+
+/* =========================
+   VOTING POWER (wallet stake / total bonded / %)
+========================= */
+const vpCache = {
+  totalBonded: { v:null, ts:0 },
+  delegations: new Map()
+};
+const VP_TTL_MS = 25_000;
+
+async function getTotalBondedTokens(){
+  const now = Date.now();
+  if (vpCache.totalBonded.v !== null && (now - vpCache.totalBonded.ts) < VP_TTL_MS) return vpCache.totalBonded.v;
+  const j = await rest(`/cosmos/staking/v1beta1/pool`);
+  const bonded = j?.pool?.bonded_tokens ?? j?.pool?.bondedTokens ?? "0";
+  const v = BigInt(String(bonded||"0"));
+  vpCache.totalBonded = { v, ts: now };
+  return v;
+}
+async function sumDelegations(delegator){
+  if (!delegator) return 0n;
+  const now = Date.now();
+  const hit = vpCache.delegations.get(delegator);
+  if (hit && (now - hit.ts) < VP_TTL_MS) return hit.v;
+
+  let sum = 0n;
+  let next = null;
+  do{
+    const params = { "pagination.limit":"500" };
+    if (next) params["pagination.key"] = next;
+    const j = await rest(`/cosmos/staking/v1beta1/delegations/${delegator}`, params);
+    for (const d of (j?.delegation_responses||[])){
+      sum += BigInt(d?.balance?.amount || "0");
+    }
+    next = j?.pagination?.next_key || null;
+  }while(next);
+
+  vpCache.delegations.set(delegator, { v: sum, ts: now });
+  return sum;
+}
+function pctShare(part, total){
+  if (!total || total <= 0n) return "—";
+  // 2 decimals
+  const bp = (part * 10000n + total/2n) / total; // basis points
+  const ip = bp / 100n;
+  const fp = bp % 100n;
+  return `${ip.toString()}.${fp.toString().padStart(2,"0")}%`;
+}
+function setText(id, txt){
+  const el = $(id);
+  if (el) el.textContent = txt;
+}
+async function refreshVotingPower(){
+  let total = 0n;
+  try{ total = await getTotalBondedTokens(); }catch{ total = 0n; }
+
+  const totalFmt = total > 0n ? fmtL1_fromIntEl1(total.toString(), 2) : "—";
+  setText("mmVpTotal", totalFmt);
+  setText("kpVpTotal", totalFmt);
+
+  if (state.mm.cosmosAddr){
+    try{
+      const st = await sumDelegations(state.mm.cosmosAddr);
+      setText("mmVpAbs", fmtL1_fromIntEl1(st.toString(), 2));
+      setText("mmVpPct", total > 0n ? pctShare(st, total) : "—");
+    }catch{
+      setText("mmVpAbs", "—");
+      setText("mmVpPct", "—");
+    }
+  } else {
+    setText("mmVpAbs", "—");
+    setText("mmVpPct", "—");
+  }
+
+  if (state.kp.addr){
+    try{
+      const st = await sumDelegations(state.kp.addr);
+      setText("kpVpAbs", fmtL1_fromIntEl1(st.toString(), 2));
+      setText("kpVpPct", total > 0n ? pctShare(st, total) : "—");
+    }catch{
+      setText("kpVpAbs", "—");
+      setText("kpVpPct", "—");
+    }
+  } else {
+    setText("kpVpAbs", "—");
+    setText("kpVpPct", "—");
+  }
+}
+
+/* =========================
+   WALLETS
+========================= */
+async function getBalanceGenesis(addr){
+  try{ const j=await rest(`/cosmos/bank/v1beta1/balances/${addr}/by_denom`, { denom: CFG.minDenom }); if (j?.balance?.amount) return j.balance.amount; }catch{}
+  try{ const j2=await rest(`/cosmos/bank/v1beta1/balances/${addr}`); const f=(j2.balances||[]).find(b=>b.denom===CFG.minDenom); return f?f.amount:"0"; }catch{}
+  return "0";
+}
+async function refreshWallet(){
+  if (state.kp.addr){
+    const bi = await getBalanceGenesis(state.kp.addr);
+    $("kpBal").textContent = fmtL1_fromIntEl1(bi,6);
+  }else{
+    $("kpBal").textContent = "—";
+  }
+  if (state.mm.cosmosAddr){
+    const bi2 = await getBalanceGenesis(state.mm.cosmosAddr);
+    $("mmBal").textContent = fmtL1_fromIntEl1(bi2,6);
+  }else{
+    $("mmBal").textContent = "—";
+  }
+
+  // NEW: voting power refresh
+  await refreshVotingPower().catch(()=>{});
+}
+
+async function connectKeplr(){
+  if (!window.keplr) throw new Error("Keplr not detected");
+  try{
+    await window.keplr.experimentalSuggestChain({
+      chainId: CFG.chainIdCosmos, chainName: CFG.chainIdCosmos,
+      rpc: CFG.rpc, rest: CFG.lcd, bip44: { coinType: CFG.coinType },
+      bech32Config:{
+        bech32PrefixAccAddr: CFG.bech32, bech32PrefixAccPub: CFG.bech32+"pub",
+        bech32PrefixValAddr: CFG.bech32+"valoper", bech32PrefixValPub: CFG.bech32+"valoperpub",
+        bech32PrefixConsAddr: CFG.bech32+"valcons", bech32PrefixConsPub: CFG.bech32+"valconspub"
+      },
+      stakeCurrency:{ coinDenom: CFG.dispDenom, coinMinimalDenom: CFG.minDenom, coinDecimals: CFG.exp },
+      currencies:[{ coinDenom: CFG.dispDenom, coinMinimalDenom: CFG.minDenom, coinDecimals: CFG.exp }],
+      feeCurrencies:[{ coinDenom: CFG.dispDenom, coinMinimalDenom: CFG.minDenom, coinDecimals: CFG.exp }]
+    });
+  }catch(_){}
+  await window.keplr.enable(CFG.chainIdCosmos);
+  const signer = await window.getOfflineSignerAuto(CFG.chainIdCosmos);
+  const accs = await signer.getAccounts();
+  const addr = accs[0]?.address || "";
+  const gas = window.COSM.GasPrice.fromString(`${CFG.gasPrice}${CFG.minDenom}`);
+  const client = await window.COSM.SigningStargateClient.connectWithSigner(CFG.rpc, signer, { gasPrice: gas });
+  state.kp = { connected:true, addr, client };
+  $("btnKeplr").textContent="Logout";
+  $("kpAddr").textContent = addr;
+  $("kpEvm").textContent = bech32ToEvm(addr) || "";
+  await refreshWallet();
+  setGlobal("Keplr connected","status ok");
+}
+async function getAccInfo(addr){
+  try{
+    const c = new window.evmosjs.RestInstance(CFG.lcd.replace(/\/$/,""));
+    const r = await window.evmosjs.getAccount(c, addr);
+    return { accountNumber: Number(r.accountNumber||0), sequence: Number(r.sequence||0), pubkey: r.pubkey || "" };
+  }catch(_){
+    const j = await rest(`/cosmos/auth/v1beta1/accounts/${addr}`);
+    const a = j?.account || {};
+    let base = a.base_account || a.baseAccount || a;
+    if (base?.base_account) base = base.base_account;
+    const pubkey = base?.pub_key?.key || base?.pubKey?.key || base?.pubkey || "";
+    return {
+      accountNumber: Number(base?.account_number ?? base?.accountNumber ?? 0),
+      sequence: Number(base?.sequence ?? 0),
+      pubkey
+    };
+  }
+}
+async function connectEvm(){
+  const providers = detectEvmProviders();
+  if (!providers.length) throw new Error("No EVM wallet detected");
+  const chosenProv = await chooseEvmProviderInteractive(providers);
+  if (!chosenProv) return;
+
+  const idx = providers.indexOf(chosenProv);
+  const desc = describeEvmProvider(chosenProv, idx === -1 ? 0 : idx);
+
+  const p = chosenProv;
+  state.mm.provider = p;
+  state.mm.walletLabel = desc.label;
+
+  const accounts = await p.request({ method: "eth_requestAccounts" });
+  const addr = accounts[0];
+  if (!addr) throw new Error("No account in selected EVM wallet");
+
+  const chainIdHex = await p.request({ method: "eth_chainId" });
+  const chainIdDec = parseInt(chainIdHex, 16) || CFG.chainIdEvmFallback;
+  const cosmos = evmToBech32(addr, CFG.bech32);
+
+  state.mm.connected = true;
+  state.mm.evmAddr = addr;
+  state.mm.cosmosAddr = cosmos;
+  state.mm.chainId = chainIdDec;
+  state.mm.pubkeyRecovered = false;
+
+  $("mmAddr").textContent = addr;
+  $("mmCosmos").textContent = cosmos;
+  $("btnMM").textContent = "Logout";
+
+  await refreshWallet();
+  setGlobal(`${state.mm.walletLabel} connected (chainId ${chainIdDec})`,"status ok");
+
+  if (!p._genesisGovHandlersAttached){
+    p.on?.('accountsChanged', async (a)=>{
+      if(a?.[0]){
+        state.mm.evmAddr = a[0];
+        state.mm.cosmosAddr = evmToBech32(state.mm.evmAddr, CFG.bech32);
+        state.mm.pubkeyRecovered=false;
+        $("mmAddr").textContent = state.mm.evmAddr;
+        $("mmCosmos").textContent = state.mm.cosmosAddr;
+        // bust cache for this address
+        vpCache.delegations.delete(state.mm.cosmosAddr);
+        await refreshWallet();
+      }
+    });
+    p.on?.('chainChanged', async ()=>{
+      try{
+        const cid=await p.request({method:"eth_chainId"});
+        state.mm.chainId = parseInt(cid,16)||CFG.chainIdEvmFallback;
+      }catch{}
+      setGlobal(`${state.mm.walletLabel || "EVM wallet"} chain ${state.mm.chainId}`,"muted");
+    });
+    p._genesisGovHandlersAttached=true;
+  }
+}
+async function disconnectEvm(){
+  const label = state.mm.walletLabel || "EVM wallet";
+  state.mm = { connected:false, provider:null, evmAddr:"", cosmosAddr:"", chainId:CFG.chainIdEvmFallback, pubkeyRecovered:false, walletLabel:"" };
+  $("mmAddr").textContent = "";
+  $("mmCosmos").textContent = "";
+  $("mmBal").textContent = "—";
+  $("btnMM").textContent = "Connect";
+  setGlobal(`${label} disconnected`,"muted");
+  await refreshVotingPower().catch(()=>{});
+}
+
+/* =========================
+   PROPOSAL PARSING
+========================= */
+function tryParseJsonMaybeBase64(s){
+  if (!s || typeof s!=="string") return null;
+  try{
+    if (s.trim().startsWith("{") || s.trim().startsWith("[")) return JSON.parse(s);
+    const txt = atob(s);
+    if (txt && (txt.trim().startsWith("{") || txt.trim().startsWith("["))) return JSON.parse(txt);
+  }catch{}
+  return null;
+}
+function titleAndSummaryFromMessages(msgs){
+  if (!Array.isArray(msgs)) return {title:"",summary:""};
+  for (const m of msgs){
+    const c = m?.content || m?.value?.content || null;
+    if (c && (c.title || c.description)) return { title: c.title||"", summary: c.description||"" };
+    if (m?.title || m?.description) return { title: m.title||"", summary: m.description||"" };
+  }
+  return {title:"", summary:""};
+}
+function normalizeProposal(p){
+  const id   = String(p.id || p.proposal_id || p.proposalId || "");
+  const status = String(p.status || p.proposal_status || "").toUpperCase();
+  const submit_time = p.submit_time || p.submitTime;
+  const deposit_end_time = p.deposit_end_time || p.depositEndTime;
+  const voting_start_time = p.voting_start_time || p.votingStartTime;
+  const voting_end_time = p.voting_end_time || p.votingEndTime;
+
+  let title = p.title || "";
+  let summary = p.summary || p.description || "";
+
+  if ((!title || !summary) && p.content && (p.content.title || p.content.description)){
+    title = title || p.content.title || "";
+    summary = summary || p.content.description || "";
+  }
+  if ((!title || !summary) && p.metadata){
+    const meta = tryParseJsonMaybeBase64(p.metadata);
+    if (meta){
+      title = title || meta.title || "";
+      summary = summary || meta.summary || meta.description || "";
+    }
+  }
+  if ((!title || !summary) && p.messages){
+    const t = titleAndSummaryFromMessages(p.messages);
+    title = title || t.title;
+    summary = summary || t.summary;
+  }
+
+  let depositAmountInt = "0";
+  const depArr = p.total_deposit || p.totalDeposit || p.total_deposits;
+  if (Array.isArray(depArr) && depArr.length){
+    const coin = depArr.find(d=>d.denom===CFG.minDenom) || depArr[0];
+    if (coin?.amount) depositAmountInt = String(coin.amount);
+  }
+
+  return {
+    id,
+    status,
+    title: title||`Proposal #${id}`,
+    summary: summary||"",
+    submit_time,
+    deposit_end_time,
+    voting_start_time,
+    voting_end_time,
+    depositAmountInt
+  };
+}
+function statusClass(s){
+  if (s.includes("VOTING")) return "badge voting";
+  if (s.includes("DEPOSIT")) return "badge deposit";
+  if (s.includes("PASSED")) return "badge passed";
+  if (s.includes("REJECTED")) return "badge rejected";
+  if (s.includes("FAILED")) return "badge failed";
+  return "badge";
+}
+const isVoting = (s)=> s.includes("VOTING");
+const isDeposit = (s)=> s.includes("DEPOSIT");
+
+/* =========================
+   FETCH: PROPOSALS + TALLY
+========================= */
+async function fetchPage(filter="ALL", key=null){
+  const map = {
+    ALL: null,
+    PROPOSAL_STATUS_VOTING_PERIOD: "PROPOSAL_STATUS_VOTING_PERIOD",
+    PROPOSAL_STATUS_DEPOSIT_PERIOD: "PROPOSAL_STATUS_DEPOSIT_PERIOD",
+    PROPOSAL_STATUS_PASSED: "PROPOSAL_STATUS_PASSED",
+    PROPOSAL_STATUS_REJECTED: "PROPOSAL_STATUS_REJECTED",
+    PROPOSAL_STATUS_FAILED: "PROPOSAL_STATUS_FAILED"
+  };
+  const base = state.govApi==="v1" ? "/cosmos/gov/v1/proposals" : "/cosmos/gov/v1beta1/proposals";
+  const params = {
+    "pagination.limit": String(state.page.limit),
+    "pagination.reverse": "true",
+    "pagination.count_total": "true"
+  };
+  if (filter !== "ALL") params.proposal_status = map[filter];
+  if (key) params["pagination.key"] = key;
+
+  const j = await rest(base, params);
+  let list = (j?.proposals||[]).map(normalizeProposal);
+  list.sort((a,b)=>Number(b.id)-Number(a.id));
+
+  const maybeTotal = Number(j?.pagination?.total ?? 0);
+  state.total = maybeTotal > 0 ? maybeTotal : state.total;
+
+  return { list, nextKey: j?.pagination?.next_key || null };
+}
+async function fetchTally(id){
+  const path = state.govApi==="v1" ? `/cosmos/gov/v1/proposals/${id}/tally` : `/cosmos/gov/v1beta1/proposals/${id}/tally`;
+  const j = await rest(path);
+  let yes="0", no="0", abstain="0", veto="0";
+  if (state.govApi==="v1"){
+    const t = j?.tally || j;
+    yes = t?.yes_count||"0"; no = t?.no_count||"0"; abstain=t?.abstain_count||"0"; veto=t?.no_with_veto_count||"0";
+  }else{
+    const t = j?.tally || j;
+    yes = t?.yes||"0"; no = t?.no||"0"; abstain=t?.abstain||"0"; veto=t?.no_with_veto||"0";
+  }
+  return { yes, no, abstain, veto };
+}
+
+/* =========================
+   VOTE / DEPOSIT / SUBMIT (Keplr)
+========================= */
+async function kpVote(id, option){
+  if (!state.kp.connected) throw new Error("Connect Keplr first");
+  const oMapV1beta1 = { YES:"VOTE_OPTION_YES", NO:"VOTE_OPTION_NO", ABSTAIN:"VOTE_OPTION_ABSTAIN", VETO:"VOTE_OPTION_NO_WITH_VETO" };
+  const oMapV1 = { YES:1, ABSTAIN:2, NO:3, VETO:4 };
+  const msgs = state.govApi==="v1"
+    ? [{ typeUrl:"/cosmos.gov.v1.MsgVote", value:{ proposalId:String(id), voter:state.kp.addr, option:oMapV1[option] }}]
+    : [{ typeUrl:"/cosmos.gov.v1beta1.MsgVote", value:{ proposalId:String(id), voter:state.kp.addr, option:oMapV1beta1[option] }}];
+
+  const fee = { amount:[{ denom: CFG.minDenom, amount:(BigInt(CFG.gasPrice)*BigInt(CFG.gasLimit)).toString() }], gas:String(CFG.gasLimit) };
+  const info = await getAccInfo(state.kp.addr);
+  const txRaw = await state.kp.client.sign(state.kp.addr, msgs, fee, "", {
+    accountNumber: info.accountNumber, sequence: info.sequence, chainId: CFG.chainIdCosmos
+  });
+  const txBytes = encodeTxRawLocal(txRaw);
+  const res = await state.kp.client.broadcastTx(txBytes);
+  const code = res?.code ?? res?.tx_response?.code ?? 0;
+  if (code) throw new Error(res?.raw_log || res?.tx_response?.raw_log || `Tx code ${code}`);
+  return res;
+}
+async function kpDeposit(id, amountL1){
+  if (!state.kp.connected) throw new Error("Connect Keplr first");
+  const amt = toBaseUnitsBI(amountL1); if (amt<=0n) throw new Error("Invalid amount");
+  const msgs = state.govApi==="v1"
+    ? [{ typeUrl:"/cosmos.gov.v1.MsgDeposit", value:{ proposalId:String(id), depositor:state.kp.addr, amount:[{ denom:CFG.minDenom, amount:amt.toString() }] }}]
+    : [{ typeUrl:"/cosmos.gov.v1beta1.MsgDeposit", value:{ proposalId:String(id), depositor:state.kp.addr, amount:[{ denom:CFG.minDenom, amount:amt.toString() }] }}];
+
+  const fee = { amount:[{ denom: CFG.minDenom, amount:(BigInt(CFG.gasPrice)*BigInt(CFG.gasLimit)).toString() }], gas:String(CFG.gasLimit) };
+  const info = await getAccInfo(state.kp.addr);
+  const txRaw = await state.kp.client.sign(state.kp.addr, msgs, fee, "", {
+    accountNumber: info.accountNumber, sequence: info.sequence, chainId: CFG.chainIdCosmos
+  });
+  const txBytes = encodeTxRawLocal(txRaw);
+  const res = await state.kp.client.broadcastTx(txBytes);
+  const code = res?.code ?? res?.tx_response?.code ?? 0;
+  if (code) throw new Error(res?.raw_log || res?.tx_response?.raw_log || `Tx code ${code}`);
+  return res;
+}
+function extractProposalIdFromLogs(res){
+  const logs = res?.logs || res?.tx_response?.logs || [];
+  for (const log of logs){
+    for (const ev of (log?.events||[])){
+      if (ev?.type === "submit_proposal"){
+        const a = (ev?.attributes||[]).find(x=>x.key==="proposal_id" || x.key==="proposalID");
+        if (a?.value) return a.value;
+      }
+    }
+  }
+  return null;
+}
+async function kpSubmitProposal({ type, title, description, depositL1, recipient, spendAmountL1 }){
+  if (!state.kp.connected) throw new Error("Connect Keplr first");
+  type = type || "text";
+
+  title = String(title||"").trim();
+  description = String(description||"").trim();
+  if (!title) throw new Error("Title is required");
+  if (!description) throw new Error("Description is required");
+
+  const dep = toBaseUnitsBI(depositL1);
+  if (dep<=0n) throw new Error("Initial deposit must be > 0");
+
+  let contentAny;
+  if (type === "cpsp"){
+    const rcpt = String(recipient||"").trim();
+    const amtL1 = String(spendAmountL1||"").trim();
+    if (!rcpt) throw new Error("Recipient address is required for community pool spend");
+    if (!rcpt.startsWith(CFG.bech32+"1")) throw new Error(`Recipient must be a ${CFG.bech32} bech32 address`);
+    const amtBI = toBaseUnitsBI(amtL1);
+    if (amtBI<=0n) throw new Error("Community pool amount must be > 0");
+
+    const cpspBytes = encodeCommunityPoolSpendProposalBytes(title, description, rcpt, amtBI.toString());
+    contentAny = { typeUrl: "/cosmos.distribution.v1beta1.CommunityPoolSpendProposal", value: cpspBytes };
+  } else {
+    const tpBytes = encodeTextProposalBytes(title, description);
+    contentAny = { typeUrl: "/cosmos.gov.v1beta1.TextProposal", value: tpBytes };
+  }
+
+  const msgs = [{
+    typeUrl: "/cosmos.gov.v1beta1.MsgSubmitProposal",
+    value: {
+      content: contentAny,
+      initialDeposit: [{ denom: CFG.minDenom, amount: dep.toString() }],
+      proposer: state.kp.addr
+    }
+  }];
+
+  const fee = { amount:[{ denom: CFG.minDenom, amount:(BigInt(CFG.gasPrice)*BigInt(CFG.gasLimit)).toString() }], gas:String(CFG.gasLimit) };
+  const info = await getAccInfo(state.kp.addr);
+  const txRaw = await state.kp.client.sign(state.kp.addr, msgs, fee, "", {
+    accountNumber: info.accountNumber, sequence: info.sequence, chainId: CFG.chainIdCosmos
+  });
+  const txBytes = encodeTxRawLocal(txRaw);
+  const res = await state.kp.client.broadcastTx(txBytes);
+  const code = res?.code ?? res?.tx_response?.code ?? 0;
+  if (code) throw new Error(res?.raw_log || res?.tx_response?.raw_log || `Tx code ${code}`);
+  return res;
+}
+
+/* =========================
+   MetaMask governance (EIP-712 via Tharsis): VOTE ONLY
+========================= */
+async function recoverEthCompressedPubkeyB64(ethAddr){
+  const msg = "Verify Public Key";
+  const sig = await state.mm.provider.request({ method:"personal_sign", params:[msg, ethAddr, ""] });
+  const h = ethers.hashMessage(msg);
+  const uncmp = ethers.SigningKey.recoverPublicKey(h, sig);
+  const cmp = ethers.SigningKey.computePublicKey(uncmp, true).replace(/^0x/,'');
+  const bytes = Uint8Array.from(cmp.match(/.{1,2}/g).map(x=>parseInt(x,16)));
+  return btoa(String.fromCharCode(...bytes));
+}
+async function getSenderCtxGov(){
+  const info = await getAccInfo(state.mm.cosmosAddr);
+  let pubkey = info.pubkey;
+  if (!pubkey && !state.mm.pubkeyRecovered){
+    try{
+      pubkey = await recoverEthCompressedPubkeyB64(state.mm.evmAddr);
+      state.mm.pubkeyRecovered = true;
+    }catch{}
+  }
+  return {
+    accountAddress: state.mm.cosmosAddr,
+    sequence: info.sequence,
+    accountNumber: info.accountNumber,
+    pubkey: pubkey || ""
+  };
+}
+
+let _tharsis = null;
+let _provider = null;
+async function loadTharsis(){
+  if (_tharsis && _provider) return { T:_tharsis, P:_provider };
+  const txCandidates = [
+    "https://esm.sh/@tharsis/transactions@0.2.6?bundle&target=es2020",
+    "https://esm.run/@tharsis/transactions@0.2.6",
+    "https://ga.jspm.io/npm:@tharsis/transactions@0.2.6/dist/index.js"
+  ];
+  for (const u of txCandidates){
+    try{
+      const M = await import(u);
+      const api = M?.createTxMsgDelegate ? M : (M?.default?.createTxMsgDelegate ? M.default : null);
+      if (api){ _tharsis = api; break; }
+    }catch{}
+  }
+  if (!_tharsis) throw new Error("Failed to load Tharsis transactions (EIP-712)");
+
+  const provCandidates = [
+    "https://esm.sh/@tharsis/provider@0.2.4?bundle&target=es2020",
+    "https://ga.jspm.io/npm:@tharsis/provider@0.2.4/dist/index.js"
+  ];
+  for (const u of provCandidates){
+    try{
+      const M = await import(u);
+      if (M?.generateEndpointBroadcast && M?.generatePostBodyBroadcast){ _provider = M; break; }
+      if (M?.default?.generateEndpointBroadcast){ _provider = M.default; break; }
+    }catch{}
+  }
+  if (!_provider) throw new Error("Failed to load Tharsis provider");
+  return { T:_tharsis, P:_provider };
+}
+function parseExpectedSeq(raw){
+  if(!raw) return null;
+  let m = /expected\s+(\d+)/i.exec(raw);
+  if (m) return Number(m[1]);
+  m = /got\s+\d+,\s*expected\s+(\d+)/i.exec(raw);
+  if (m) return Number(m[1]);
+  return null;
+}
+
+async function mmBuildSignBroadcastGovVote({ proposalId, option }={}, seqOverride=null){
+  const { T, P } = await loadTharsis();
+  if (!state.mm.connected) throw new Error("Connect EVM wallet first");
+
+  if (typeof T.createTxMsgVote !== "function"){
+    throw new Error("EVM vote via EIP-712 is not supported by this Tharsis version. Please use Keplr for voting.");
+  }
+
+  const senderBase = await getSenderCtxGov();
+  const sender = { ...senderBase, sequence: seqOverride ?? senderBase.sequence };
+
+  const fee = { amount:(BigInt(CFG.gasLimit)*BigInt(CFG.gasPrice)).toString(), denom:CFG.minDenom, gas:String(CFG.gasLimit) };
+  const chain = { chainId: state.mm.chainId || CFG.chainIdEvmFallback, cosmosChainId: CFG.chainIdCosmos };
+  const memo = "";
+
+  const oMap = { YES:1, ABSTAIN:2, NO:3, VETO:4 };
+  const tx = T.createTxMsgVote(chain, sender, fee, memo, { proposalId: String(proposalId), option: oMap[option] ?? 1 });
+
+  const sig = await state.mm.provider.request({
+    method:"eth_signTypedData_v4",
+    params:[ state.mm.evmAddr, JSON.stringify(tx.eipToSign) ]
+  });
+
+  const ext = T.signatureToWeb3Extension(chain, sender, sig);
+  const txRaw = T.createTxRawEIP712(tx.legacyAmino.body, tx.legacyAmino.authInfo, ext);
+
+  const endpoint = CFG.lcd.replace(/\/$/,"") + _provider.generateEndpointBroadcast();
+  const body = _provider.generatePostBodyBroadcast(txRaw);
+  const res = await fetch(endpoint, { method:"POST", headers:{ "Content-Type":"application/json" }, body }).then(r=>r.json());
+  return { res, sender };
+}
+async function mmVote(id, option){
+  let { res, sender } = await mmBuildSignBroadcastGovVote({ proposalId:id, option }, null);
+  if (res?.tx_response?.code){
+    const exp = parseExpectedSeq(res.tx_response.raw_log || "");
+    if (typeof exp === "number" && exp !== sender.sequence){
+      ({ res } = await mmBuildSignBroadcastGovVote({ proposalId:id, option }, exp));
+    }
+  }
+  if (res?.tx_response?.code){
+    throw new Error(`Tx error (code ${res.tx_response.code}): ${res.tx_response.raw_log || "see node logs"}`);
+  }
+  return res?.tx_response || res;
+}
+
+/* =========================
+   RENDER
+========================= */
+function proposalRowHTML(p){
+  const canVote = isVoting(p.status);
+  const canDep  = isDeposit(p.status);
+  const hasActions = canVote || canDep;
+  const tallySpan = hasActions ? "" : "md:col-span-2";
+
+  let depositProgressHTML = "";
+  if (canDep && state.minDepositInt){
+    const cur = (BigInt(p.depositAmountInt||"0") / TEN(CFG.exp)).toString();
+    const need = (BigInt(state.minDepositInt||"0") / TEN(CFG.exp)).toString();
+    depositProgressHTML = `<span class="ml-2 text-xs text-gray-500">Deposit: ${cur}/${need}</span>`;
+  }
+
+  const actions = (canVote || canDep) ? `
+    <div class="card p-3 space-y-3">
+      ${canVote ? `
+      <div>
+        <div class="text-xs text-gray-500 mb-1">Vote</div>
+        <div class="flex flex-wrap items-center gap-3 text-sm">
+          <label class="pill"><input type="radio" name="vote_${p.id}" value="YES" checked> Yes</label>
+          <label class="pill"><input type="radio" name="vote_${p.id}" value="NO"> No</label>
+          <label class="pill"><input type="radio" name="vote_${p.id}" value="ABSTAIN"> Abstain</label>
+          <label class="pill"><input type="radio" name="vote_${p.id}" value="VETO"> No with veto</label>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 mt-2">
+          <button class="btnx primary small" id="mmVote_${p.id}">Vote (EVM)</button>
+          <button class="btnx small" id="kpVote_${p.id}">Vote (Keplr)</button>
+        </div>
+      </div>` : ``}
+
+      ${canDep ? `
+      <div>
+        <div class="text-xs text-gray-500 mb-1">Deposit (in ${CFG.dispDenom})</div>
+        <div class="flex flex-wrap items-center gap-2">
+          <input id="depAmt_${p.id}" class="sleek-core" placeholder="10.0" style="max-width:180px">
+          <button class="btnx small" id="kpDep_${p.id}">Deposit (Keplr)</button>
+        </div>
+      </div>` : ``}
+
+      <div id="note_${p.id}" class="text-xs text-gray-600"></div>
+    </div>
+  ` : ``;
+
+  return `
+    <div class="row-card" id="row_${p.id}">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <div class="flex items-center gap-2">
+            <div class="text-sm text-gray-500">#${p.id}</div>
+            <div class="${statusClass(p.status)}">${escapeHtml(p.status.replace("PROPOSAL_STATUS_","").replaceAll("_"," "))}</div>
+            ${depositProgressHTML}
+          </div>
+          <div class="mt-1 font-semibold">${escapeHtml(p.title)}</div>
+          <div class="mt-1 text-sm text-gray-700 whitespace-pre-line">${p.summary ? escapeHtml(p.summary) : ""}</div>
+          <div class="mt-2 text-xs text-gray-500">
+            <span>Submitted: ${fmtTime(p.submit_time)}</span>
+            ${p.deposit_end_time ? `&nbsp;•&nbsp;<span>Deposit ends: ${fmtTime(p.deposit_end_time)}</span>`:""}
+            ${p.voting_end_time ? `&nbsp;•&nbsp;<span>Voting ends: ${fmtTime(p.voting_end_time)}</span>`:""}
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-3 grid md:grid-cols-2 gap-3">
+        <div class="card p-3 ${tallySpan}">
+          <div class="text-xs text-gray-500 mb-1">Live tally</div>
+          <div id="tally_${p.id}">
+            <div class="text-sm text-gray-500">Loading…</div>
+          </div>
+        </div>
+
+        ${actions}
+      </div>
+    </div>
+  `;
+}
+
+function renderProposals(list){
+  const box = $("proposalsBox");
+  if (!list.length){ box.innerHTML = `<div class="text-sm text-gray-600">No proposals found for this page/filter.</div>`; return; }
+  box.innerHTML = list.map(proposalRowHTML).join("");
+
+  for (const p of list){
+    (async ()=>{
+      const area = $("tally_"+p.id);
+      try{
+        const t = await fetchTally(p.id);
+        const total = BigInt(t.yes||"0")+BigInt(t.no||"0")+BigInt(t.abstain||"0")+BigInt(t.veto||"0");
+        const yes=BigInt(t.yes||"0"), no=BigInt(t.no||"0"), ab=BigInt(t.abstain||"0"), ve=BigInt(t.veto||"0");
+        area.innerHTML = `
+          <div class="text-sm grid grid-cols-2 gap-2">
+            <div>Yes: <span class="mono">${fmtL1_fromIntEl1(t.yes,4)}</span> <span class="text-gray-500">(${pct(yes,total)})</span></div>
+            <div>No: <span class="mono">${fmtL1_fromIntEl1(t.no,4)}</span> <span class="text-gray-500">(${pct(no,total)})</span></div>
+            <div>Abstain: <span class="mono">${fmtL1_fromIntEl1(t.abstain,4)}</span> <span class="text-gray-500">(${pct(ab,total)})</span></div>
+            <div>No with veto: <span class="mono">${fmtL1_fromIntEl1(t.veto,4)}</span> <span class="text-gray-500">(${pct(ve,total)})</span></div>
+          </div>
+          <div class="bar mt-2">
+            <div style="width:${pct(yes,total)}; background:#38bdf8"></div>
+          </div>
+        `;
+      }catch(e){ area.innerHTML = `<div class="text-sm text-red-700">Tally error: ${escapeHtml(e?.message||e)}</div>`; }
+    })();
+
+    const note = $("note_"+p.id);
+    const selected = ()=> document.querySelector(`input[name="vote_${p.id}"]:checked`)?.value || "YES";
+
+    $("mmVote_"+p.id)?.addEventListener("click", async ()=>{
+      note && (note.textContent = "Submitting vote via EVM wallet…");
+      try{
+        const res = await mmVote(p.id, selected());
+        note && (note.innerHTML = `<span class="status ok">EVM vote OK. Height ${res?.height||"n/a"}.</span>`);
+      }catch(e){ note && (note.innerHTML = `<span class="status err">${escapeHtml(e?.message||e)}</span>`); }
+    });
+    $("kpVote_"+p.id)?.addEventListener("click", async ()=>{
+      note && (note.textContent = "Submitting vote via Keplr…");
+      try{
+        const res = await kpVote(p.id, selected());
+        note && (note.innerHTML = `<span class="status ok">Keplr vote OK. Height ${res?.height||res?.tx_response?.height||"n/a"}.</span>`);
+      }catch(e){ note && (note.innerHTML = `<span class="status err">${escapeHtml(e?.message||e)}</span>`); }
+    });
+
+    $("kpDep_"+p.id)?.addEventListener("click", async ()=>{
+      const amt = $("depAmt_"+p.id)?.value?.trim() ?? "";
+      note && (note.textContent = "Submitting deposit via Keplr…");
+      try{
+        const res = await kpDeposit(p.id, amt);
+        note && (note.innerHTML = `<span class="status ok">Keplr deposit OK. Height ${res?.height||res?.tx_response?.height||"n/a"}.</span>`);
+        await refreshWallet();
+      }catch(e){ note && (note.innerHTML = `<span class="status err">${escapeHtml(e?.message||e)}</span>`); }
+    });
+  }
+}
+
+/* =========================
+   PAGINATION
+========================= */
+function updatePagerUI(){
+  const total = state.total;
+  const pages = total ? Math.max(1, Math.ceil(total / state.page.limit)) : null;
+  $("pageInfo").textContent = pages ? `Page ${state.pageNo} / ${pages}` : `Page ${state.pageNo}`;
+  $("btnNewer").disabled = state.pageNo <= 1;
+
+  if (pages) {
+    $("btnOlder").disabled = state.pageNo >= pages;
+  } else {
+    const hasNext = !!state.pageKeys[state.pageNo + 1] || !!state.pageCache[state.pageNo + 1] || state.hasMore;
+    $("btnOlder").disabled = !hasNext;
+  }
+}
+
+async function loadPage(direction="init"){
+  const filter = state.page.filter;
+
+  let key = null;
+  if (direction === "older") {
+    key = state.pageKeys[state.pageNo + 1] ?? state.page.nextKey ?? null;
+  }
+
+  if (direction === "older") state.pageNo += 1;
+  if (direction === "newer" && state.pageNo > 1) state.pageNo -= 1;
+
+  setGlobal("Loading proposals…","muted");
+
+  if (state.pageCache[state.pageNo]) {
+    state.proposals = state.pageCache[state.pageNo];
+    renderProposals(state.proposals);
+    updatePagerUI();
+    clearGlobal();
+    return;
+  }
+
+  const { list, nextKey } = await fetchPage(filter, key);
+  state.proposals = list;
+  state.pageCache[state.pageNo] = list;
+  state.pageKeys[state.pageNo + 1] = nextKey || null;
+  state.hasMore = !!nextKey || (list.length === state.page.limit);
+
+  renderProposals(list);
+  updatePagerUI();
+  clearGlobal();
+}
+
+/* =========================
+   BOOT
+========================= */
+function onReady(fn){ if (document.readyState==='loading') document.addEventListener('DOMContentLoaded', fn); else fn(); }
+
+onReady(async ()=>{
+  initEip6963Discovery();
+
+  // Collapsible proposal section
+  const propBody = $("propSectionBody");
+  const propToggle = $("propToggle");
+  if (propBody && propToggle){
+    let open = false;
+    const sync = ()=>{
+      if (open){
+        propBody.classList.remove("hidden");
+        propToggle.textContent = "Hide form";
+      }else{
+        propBody.classList.add("hidden");
+        propToggle.textContent = "Show form";
+      }
+    };
+    sync();
+    propToggle.addEventListener("click", ()=>{ open = !open; sync(); });
+  }
+
+  // Toggle Community Pool Spend extra fields
+  const typeSel = $("propType");
+  const cpspExtra = $("cpspExtra");
+  if (typeSel && cpspExtra){
+    const updateVis = ()=>{
+      if (typeSel.value === "cpsp") cpspExtra.classList.remove("hidden");
+      else cpspExtra.classList.add("hidden");
+    };
+    typeSel.addEventListener("change", updateVis);
+    updateVis();
+  }
+
+  // Keplr connect/disconnect
+  $("btnKeplr")?.addEventListener("click", async ()=>{
+    try{
+      if (state.kp.connected){
+        state.kp = { connected:false, addr:"", client:null };
+        $("btnKeplr").textContent="Connect";
+        $("kpAddr").textContent = "";
+        $("kpEvm").textContent = "";
+        $("kpBal").textContent = "—";
+        setGlobal("Keplr disconnected","muted");
+        await refreshVotingPower().catch(()=>{});
+        return;
+      }
+      await connectKeplr();
+    }catch(e){ alert(e?.message||e); }
+  });
+
+  // EVM connect/disconnect
+  $("btnMM")?.addEventListener("click", async ()=>{
+    try{
+      if (state.mm.connected){
+        await disconnectEvm();
+        return;
+      }
+      await connectEvm();
+    }catch(e){ alert(e?.message||e); }
+  });
+
+  // Submit Proposal via Keplr (EVM submit removed)
+  $("btnSubmitProp")?.addEventListener("click", async ()=>{
+    const title = $("propTitle")?.value?.trim() ?? "";
+    const description = $("propDesc")?.value?.trim() ?? "";
+    const deposit = $("propDeposit")?.value?.trim() ?? "";
+    const type = $("propType")?.value ?? "text";
+    const recipient = $("propRecipient")?.value?.trim() ?? "";
+    const amount = $("propAmount")?.value?.trim() ?? "";
+    const note = $("submitNote");
+    try{
+      $("btnSubmitProp").disabled = true;
+      note.textContent = type === "cpsp"
+        ? "Submitting community pool spend proposal via Keplr…"
+        : "Submitting text proposal via Keplr…";
+
+      const res = await kpSubmitProposal({ type, title, description, depositL1: deposit, recipient, spendAmountL1: amount });
+
+      const pid = extractProposalIdFromLogs(res);
+      const height = res?.height || res?.tx_response?.height || "n/a";
+      const msg = pid ? `Proposal #${pid} submitted at height ${height}.` : `Proposal submitted at height ${height}.`;
+      note.innerHTML = `<span class="status ok">${msg}</span>`;
+
+      $("propTitle").value = "";
+      $("propDesc").value = "";
+      $("propDeposit").value = "";
+      $("propRecipient") && ( $("propRecipient").value = "" );
+      $("propAmount") && ( $("propAmount").value = "" );
+      $("propType").value = "text";
+      cpspExtra && cpspExtra.classList.add("hidden");
+
+      await refreshWallet();
+      state.pageKeys = {}; state.pageCache = {}; state.pageNo = 1; state.hasMore = true;
+      await loadPage("init");
+    }catch(e){
+      note.innerHTML = `<span class="status err">${escapeHtml(e?.message||e)}</span>`;
+    }finally{
+      $("btnSubmitProp").disabled = false;
+    }
+  });
+
+  // Paging
+  $("btnOlder")?.addEventListener("click", async ()=> loadPage("older"));
+  $("btnNewer")?.addEventListener("click", async ()=> loadPage("newer"));
+
+  await detectGovApi();
+  await loadMinDepositHint();
+  state.page.limit = 20;
+
+  // initial vote power (shows total even without wallets if available)
+  await refreshVotingPower().catch(()=>{});
+
+  await loadPage("init");
+});
+</script>
+
+<!-- Iframe helpers: mark embedded + resize -->
+<script>
+(function(){
+  if (window === window.parent) return;
+
+  function markEmbedded(){
+    document.documentElement.classList.add('gl1-embedded');
+    if (document.body) document.body.classList.add('gl1-embedded');
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', markEmbedded, { once: true });
+  } else {
+    markEmbedded();
+  }
+
+  function sendHeight(){
+    var doc  = document;
+    var body = doc.body;
+    var html = doc.documentElement;
+    if (!body || !html) return;
+
+    var height = Math.max(
+      body.scrollHeight,
+      body.offsetHeight,
+      html.clientHeight,
+      html.scrollHeight,
+      html.offsetHeight
+    );
+
+    window.parent.postMessage(
+      { type: 'gl1-iframe-resize', height: height },
+      '*'
+    );
+  }
+
+  window.addEventListener('load', function(){
+    sendHeight();
+    setTimeout(sendHeight, 300);
+    setTimeout(sendHeight, 1000);
+  });
+
+  window.addEventListener('resize', function(){ sendHeight(); });
+
+  if ('ResizeObserver' in window){
+    var ro = new ResizeObserver(function(){ sendHeight(); });
+    ro.observe(document.body);
+  }
+})();
+</script>
+
+</body>
+</html>
