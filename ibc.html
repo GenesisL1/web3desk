@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>GenesisL1 — IBC Transfers</title>
+
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          primary: {
+            50:'#eef7ff',100:'#d9ecff',200:'#b8dcff',300:'#8ac6ff',400:'#54a9ff',
+            500:'#278dff',600:'#1973e6',700:'#155ec0',800:'#144f9e',900:'#133f7e'
+          }
+        },
+        boxShadow: {
+          soft: '0 10px 30px rgba(23,104,255,.12)',
+          glass: 'inset 0 1px 0 rgba(255,255,255,.35), 0 10px 35px rgba(16,24,40,.08)',
+        }
+      }
+    }
+  }
+</script>
+
+<style>
+  /* ===== app.html look & feel (IBC tab) ===== */
+  main, .glass, .wrap {
+    width:100% !important;
+    max-width:none !important;
+    padding-left:1em !important;
+    padding-right:1em !important;
+  }
+  :root { color-scheme: light; }
+  body{
+    background:
+
+  }
+
+
+
+  .wrap{ width:100%; max-width:none; padding:20px 24px 48px }
+  .muted{ color:#667085 }
+  .status.ok{ color:#059669 } .status.err{ color:#b91c1c } .status.warn{ color:#b45309 }
+
+  .section{ margin-top:18px }
+  .card{
+    border:1px solid #e6e9ee;
+    border-radius:16px;
+    background:#ffffff;
+
+    padding:16px;
+  }
+  .title-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:8px; flex-wrap:wrap }
+  .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap }
+
+  .balances{ display:grid; grid-template-columns:1fr 1fr; gap:16px }
+  @media (max-width:900px){ .balances{ grid-template-columns:1fr } }
+
+  .btnx{
+    background:#fff; color:#0c1017;
+    border:1px solid #e6e9ee; border-radius:10px;
+    padding:10px 12px; font:inherit; cursor:pointer
+  }
+  .btnx.primary{ background:#e8f0fe; color:#174ea6; border-color:#d2e3fc; box-shadow:0 1px 2px rgba(15,23,42,.04) }
+  .btnx.small{ padding:6px 10px }
+
+  input.sleek-core,select.sleek-core{
+    background:#fff; color:#0c1017; border:1px solid #e6e9ee;
+    border-radius:10px; padding:10px 12px; font:inherit; width:100%
+  }
+  input.sleek-core::placeholder{ color:#9ca3af } input.sleek-core[readonly]{ background:#f9fafb }
+
+  .mono{ font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; word-break:break-all }
+  .chip{
+    border-radius:9999px; padding:.25rem .6rem; font-size:.75rem; font-weight:500;
+    background:#eef7ff; color:#155ec0; border:1px solid #d9ecff;
+    display:inline-flex; align-items:center;
+  }
+  .pill{
+    display:inline-flex; align-items:center; gap:6px;
+    padding:6px 10px; border:1px solid #e6e9ee; border-radius:999px; background:#fff;
+    font-size:.85rem;
+  }
+
+  /* Global status (toast line) */
+  #globalStatus{
+    display:none; align-items:center; gap:.5rem; font-size:.9rem;
+    padding:8px 10px; border-radius:10px;
+    background:#f6faff; border:1px solid #e4efff; color:#155ec0;
+    box-shadow:0 6px 14px rgba(39,141,255,.08)
+  }
+
+  /* ===== Modal (same behavior as your staking page) ===== */
+  .modal-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.35); display:none; align-items:center; justify-content:center; padding:16px; z-index:50 }
+  .gl1-embedded .modal-backdrop{
+    align-items:flex-start;
+    justify-content:center;
+    padding-top:clamp(40px, 15vh, 80px);
+  }
+  .modal{ width:min(560px, 96%); background:#fff; border-radius:14px; border:1px solid #e6e9ee; box-shadow:0 1px 2px rgba(0,0,0,.04),0 2px 10px rgba(17,24,39,.05); padding:16px }
+  .modal .title{ font-weight:700; font-size:16px }
+  .modal .footer{ display:flex; justify-content:space-between; align-items:center; margin-top:12px }
+</style>
+</head>
+
+<body class="text-slate-800 selection:bg-primary-200/60">
+
+<main class="wrap p-0">
+  <div class="glass rounded-2xl p-4 sm:p-6">
+    <div class="mb-3" id="globalStatus"></div>
+
+    <section class="section">
+      <div class="card">
+        <div class="title-row">
+          <div>
+            <div style="font-weight:700">IBC Transfers</div>
+            <div class="muted">GenesisL1 ↔ Osmosis</div>
+          </div>
+
+          <!-- Connections -->
+          <div class="row" style="gap:8px">
+            <button id="btnMM" class="btnx primary small">Connect</button>
+            <button id="btnKeplr" class="btnx primary small">Connect Keplr</button>
+          </div>
+        </div>
+
+        <div class="balances" style="margin-top:8px">
+          <!-- GenesisL1 -> Osmosis -->
+          <div class="card" style="padding:14px;">
+            <div class="title-row">
+              <h3>GenesisL1 → Osmosis <span class="chip">channel-1</span></h3>
+            </div>
+
+            <div class="muted" style="margin-top:-4px;margin-bottom:8px">
+              <div>
+                Keplr —
+                <span class="mono">GenesisL1: <span id="ibcKpGenesisBal">—</span></span> ·
+                <span class="mono">Osmosis L1: <span id="ibcKpOsmoBal">—</span></span> ·
+                <span class="mono font-semibold">Total: <span id="ibcKpTotalBal">—</span></span>
+              </div>
+              <div>
+                EVM wallet —
+                <span class="mono">GenesisL1: <span id="ibcEvmGenesisBal">—</span></span> ·
+                <span class="mono">Osmosis L1: <span id="ibcEvmOsmoBal">—</span></span>
+              </div>
+            </div>
+
+            <div class="card" style="padding:10px;">
+              <div style="font-weight:700; margin-bottom:6px">Send L1 to Osmosis address</div>
+
+              <div class="row" style="gap:8px; align-items:flex-end; flex-wrap:wrap">
+                <div style="flex:1; min-width:160px">
+                  <label class="muted">Amount (L1)</label>
+                  <input id="ibcGtoO_amt" class="sleek-core" placeholder="0.1" />
+                </div>
+                <div style="flex:2; min-width:280px">
+                  <label class="muted">To (Osmosis bech32)</label>
+                  <input id="ibcGtoO_to" class="sleek-core" placeholder="osmo1…" />
+                </div>
+                <div style="flex:2; min-width:220px">
+                  <label class="muted">Memo (optional)</label>
+                  <input id="ibcGtoO_memo" class="sleek-core" placeholder="optional" />
+                </div>
+              </div>
+
+              <div class="row" style="gap:8px; margin-top:8px; flex-wrap:wrap">
+                <button id="btnIbcGtoO_Keplr" class="btnx small">Send with Keplr</button>
+                <!-- EVM sending intentionally removed -->
+              </div>
+
+              <div id="ibcGtoO_status" class="muted" style="margin-top:6px"></div>
+            </div>
+          </div>
+
+          <!-- Osmosis -> GenesisL1 -->
+          <div class="card" style="padding:14px;">
+            <div class="title-row">
+              <h3>Osmosis → GenesisL1 <span class="chip">channel-253</span></h3>
+            </div>
+
+            <div class="muted" style="margin-top:-4px;margin-bottom:8px">
+              <span class="mono">Keplr Osmosis L1 voucher: <span id="ibcOsmoL1Bal">—</span></span>
+            </div>
+
+            <div class="card" style="padding:10px;">
+              <div style="font-weight:700; margin-bottom:6px">Withdraw L1 back to GenesisL1</div>
+
+              <div class="row" style="gap:8px; align-items:flex-end; flex-wrap:wrap">
+                <div style="flex:1; min-width:160px">
+                  <label class="muted">Amount (L1)</label>
+                  <input id="ibcOtoG_amt" class="sleek-core" placeholder="0.1" />
+                </div>
+                <div style="flex:2; min-width:280px">
+                  <label class="muted">To (Genesis bech32)</label>
+                  <input id="ibcOtoG_to" class="sleek-core" placeholder="genesis1…" />
+                </div>
+              </div>
+
+              <div class="row" style="gap:8px; margin-top:6px">
+                <label class="pill" title="Use my connected EVM wallet converted to GenesisL1 bech32">
+                  <input type="checkbox" id="ibcOtoG_useEVM"> To my EVM wallet (Genesis bech32)
+                </label>
+              </div>
+
+              <div class="row" style="gap:8px; margin-top:8px; flex-wrap:wrap">
+                <button id="btnIbcOtoG_Keplr" class="btnx small">Send with Keplr</button>
+              </div>
+
+              <div id="ibcOtoG_status" class="muted" style="margin-top:6px"></div>
+            </div>
+          </div>
+        </div><!-- /balances -->
+      </div>
+    </section>
+  </div>
+</main>
+
+<!-- ===== EVM Wallet Choice Modal (same as staking page behavior) ===== -->
+<div id="evmWalletModal" class="modal-backdrop">
+  <div class="modal">
+    <div class="title">Choose EVM wallet</div>
+    <div class="muted text-sm mt-1">
+      Multiple EVM-compatible wallets were detected. Choose which one to use for address/balances.
+    </div>
+    <div id="evmWalletOptions" class="mt-3 space-y-2"></div>
+    <div class="footer">
+      <div class="muted text-xs">You can change this later by disconnecting and reconnecting.</div>
+      <div class="row">
+        <button class="btnx" id="evmWalletCancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ESM helpers -->
+<script type="module">
+  import { bech32 } from "https://cdn.jsdelivr.net/npm/bech32@2.0.0/+esm";
+  window.BECH32 = bech32;
+</script>
+<script type="module">
+  import { SigningStargateClient, GasPrice } from "https://cdn.jsdelivr.net/npm/@cosmjs/stargate@0.36.0/+esm";
+  const coin = (amount, denom)=>({ amount:String(amount), denom });
+  window.COSM = { SigningStargateClient, GasPrice, coin };
+</script>
+
+<!-- IBC logic -->
+<script type="module">
+/* ---------- CONFIG ---------- */
+const CFG = {
+  chainIdCosmos: "genesis_29-2",
+  lcd: "https://1317.genesisl1.org/",
+  rpc: "https://26657.genesisl1.org/",
+  bech32: "genesis",
+  coinType: 118,
+  minDenom: "el1",
+  dispDenom: "L1",
+  exp: 18,
+  gasPrice: "70000000000",
+  gasLimit: 1_000_000
+};
+const OSMO = {
+  chainId: "osmosis-1",
+  lcd: "https://lcd.osmosis.zone/",
+  rpc: "https://rpc.osmosis.zone/",
+  bech32: "osmo",
+  feeDenom: "uosmo",
+  feeGasPrice: "2500",
+  el1IbcDenom: "ibc/F16FDC11A7662B86BC0B9CE61871CBACF7C20606F95E86260FD38915184B75B4"
+};
+const IBC = { toOsmosis: "channel-1", osmosisToGenesis: "channel-253", port: "transfer", timeoutSec: 600 };
+
+const $ = (id)=>document.getElementById(id);
+
+/* ---------- STATE ---------- */
+const state = {
+  evm: { provider:null, connected:false, eth:"", bech32:"", walletLabel:"", _handlers:null },
+  kp:  { client:null, connected:false, address:"", osmoClient:null, osmoAddr:"" }
+};
+
+/* ---------- helpers ---------- */
+function setGlobal(msg, cls="muted"){
+  const g=$("globalStatus");
+  if(!g) return;
+  g.style.display="flex";
+  g.innerHTML = cls.startsWith("status")
+    ? `<span class="${cls}">${msg}</span>`
+    : `<span class="muted">${msg}</span>`;
+}
+function addCommas(x){ return x.replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+const TEN = (n)=> BigInt(10) ** BigInt(n);
+
+function fmtL1_fromIntEl1(intStr, decimals=6){
+  try{
+    const n=BigInt(intStr||"0");
+    const q=n/TEN(CFG.exp);
+    const r=(n%TEN(CFG.exp)).toString().padStart(CFG.exp,'0').slice(0,decimals);
+    return `${addCommas(q.toString())}.${r} ${CFG.dispDenom}`;
+  }catch{ return `0.${"0".repeat(decimals)} ${CFG.dispDenom}`; }
+}
+function toBaseUnitsBI(l1Str){
+  const s = String(l1Str||"").trim(); if (!s) return 0n;
+  const m = s.match(/^(-)?(\d+)(?:\.(\d+))?$/); if (!m) throw new Error("Invalid amount");
+  const neg=!!m[1], i=m[2], f=(m[3]||"").slice(0,CFG.exp);
+  const fracPadded = f + "0".repeat(CFG.exp - f.length);
+  const bi = BigInt(i) * TEN(CFG.exp) + BigInt(fracPadded||"0");
+  return neg ? -bi : bi;
+}
+async function rest(path, params={}){
+  const url=new URL(CFG.lcd.replace(/\/$/,"")+path);
+  for (const [k,v] of Object.entries(params)) url.searchParams.set(k,v);
+  const r=await fetch(url.toString(),{headers:{Accept:"application/json"}});
+  if(!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+  return await r.json();
+}
+async function restOsmo(path, params={}){
+  const url=new URL(OSMO.lcd.replace(/\/$/,"")+path);
+  for (const [k,v] of Object.entries(params)) url.searchParams.set(k,v);
+  const r=await fetch(url.toString(),{headers:{Accept:"application/json"}});
+  if(!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+  return await r.json();
+}
+async function ethToBech(eth){
+  const hex=String(eth||"").toLowerCase().replace(/^0x/,'');
+  const bytes=Uint8Array.from(hex.match(/.{1,2}/g).map(h=>parseInt(h,16)));
+  return window.BECH32.encode(CFG.bech32, window.BECH32.toWords(bytes));
+}
+function bech32Recode(addr, newPrefix){
+  const { words } = window.BECH32.decode(addr);
+  const bytes = window.BECH32.fromWords(words);
+  return window.BECH32.encode(newPrefix, window.BECH32.toWords(bytes));
+}
+
+/* ---------- EVM multi-wallet selection (same pattern as your staking page) ---------- */
+const evm6963 = { providers: [] };
+
+function initEip6963Discovery(){
+  const seen = new Set();
+  window.addEventListener("eip6963:announceProvider", (event)=>{
+    const d = event && event.detail;
+    if (!d || !d.provider || typeof d.provider.request !== "function") return;
+    if (seen.has(d.provider)) return;
+    seen.add(d.provider);
+    evm6963.providers.push(d);
+  });
+  try{ window.dispatchEvent(new Event("eip6963:requestProvider")); }catch(_){}
+}
+function getEip6963Providers(){
+  return evm6963.providers.slice();
+}
+function detectEvmProviders(){
+  const out = [];
+  const seen = new Set();
+  const add = (p)=>{
+    if (!p || typeof p.request !== "function") return;
+    if (seen.has(p)) return;
+    seen.add(p);
+    out.push(p);
+  };
+
+  // EIP-6963
+  getEip6963Providers().forEach(d=>add(d.provider));
+
+  // window.ethereum (+ legacy multi-provider)
+  const eth = window.ethereum;
+  if (eth){
+    if (Array.isArray(eth.providers) && eth.providers.length) eth.providers.forEach(add);
+    else add(eth);
+  }
+
+  // optional known globals
+  add(window.rabby);
+  add(window.trustwallet);
+  add(window.coinbaseWalletExtension);
+
+  return out;
+}
+function describeEvmProvider(p, index){
+  const announced = getEip6963Providers().find(d => d.provider === p);
+  if (announced?.info?.name){
+    return { label: announced.info.name, detail: announced.info.rdns || "" };
+  }
+
+  const flags = [
+    ["isRabby","Rabby Wallet"],
+    ["isMetaMask","MetaMask"],
+    ["isCoinbaseWallet","Coinbase Wallet"],
+    ["isTrust","Trust Wallet"],
+    ["isTrustWallet","Trust Wallet"],
+    ["isOKExWallet","OKX Wallet"],
+    ["isOkxWallet","OKX Wallet"],
+    ["isBraveWallet","Brave Wallet"],
+    ["isExodus","Exodus"],
+    ["isTally","Tally Ho"],
+    ["isFrame","Frame"],
+    ["isXDEFI","XDEFI"],
+  ];
+  for (const [k,name] of flags){
+    try{ if (p && p[k]) return { label: name, detail: "" }; }catch{}
+  }
+  if (window.rabby && p === window.rabby) return { label:"Rabby Wallet", detail:"" };
+  if (window.coinbaseWalletExtension && p === window.coinbaseWalletExtension) return { label:"Coinbase Wallet", detail:"" };
+  return { label:`EVM wallet ${index+1}`, detail:"" };
+}
+async function chooseEvmProviderInteractive(candidates){
+  if (!candidates || !candidates.length) return null;
+  if (candidates.length === 1) return candidates[0];
+
+  const root = $("evmWalletModal");
+  const box = $("evmWalletOptions");
+  const cancel = $("evmWalletCancel");
+
+  // Fallback prompt if modal missing
+  if (!root || !box){
+    const msg = "Multiple EVM wallets detected. Choose one:\n" +
+      candidates.map((p,i)=>`${i+1}. ${describeEvmProvider(p,i).label}`).join("\n");
+    const choice = Number(prompt(msg, "1") || "1");
+    const idx = Math.max(1, Math.min(candidates.length, choice)) - 1;
+    return candidates[idx];
+  }
+
+  return new Promise((resolve)=>{
+    root.style.display="flex";
+    box.innerHTML = "";
+    candidates.forEach((prov, idx)=>{
+      const d = describeEvmProvider(prov, idx);
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btnx w-full flex justify-between items-center";
+      btn.innerHTML = `<span>${d.label}</span>` + (d.detail ? `<span class="muted text-xs">${d.detail}</span>` : "");
+      btn.addEventListener("click", ()=>{
+        root.style.display="none";
+        resolve(prov);
+      });
+      box.appendChild(btn);
+    });
+    if (cancel){
+      cancel.onclick = ()=>{ root.style.display="none"; resolve(null); };
+    }
+  });
+}
+
+function detachEvmHandlers(){
+  const p = state.evm.provider;
+  const h = state.evm._handlers;
+  if (!p || !h) return;
+  try{ p.removeListener?.("accountsChanged", h.onAccounts); }catch{}
+  try{ p.removeListener?.("chainChanged", h.onChain); }catch{}
+  state.evm._handlers = null;
+}
+function attachEvmHandlers(){
+  const p = state.evm.provider;
+  if (!p || state.evm._handlers) return;
+
+  const onAccounts = async (a)=>{
+    const eth = a?.[0];
+    if (!eth){
+      // treat as disconnected
+      detachEvmHandlers();
+      state.evm.connected=false;
+      state.evm.eth="";
+      state.evm.bech32="";
+      state.evm.walletLabel="";
+      updateConnectButtons();
+      await refreshBalances();
+      setGlobal("EVM wallet disconnected","muted");
+      return;
+    }
+    state.evm.eth = eth;
+    state.evm.bech32 = await ethToBech(eth);
+    await refreshBalances();
+  };
+
+  const onChain = async ()=>{
+    // no-op; we only use addresses/balances
+  };
+
+  state.evm._handlers = { onAccounts, onChain };
+  try{ p.on?.("accountsChanged", onAccounts); }catch{}
+  try{ p.on?.("chainChanged", onChain); }catch{}
+}
+
+async function connectEvm(){
+  const providers = detectEvmProviders();
+  if (!providers.length) throw new Error("No EVM wallet detected");
+
+  const chosen = await chooseEvmProviderInteractive(providers);
+  if (!chosen) return false; // user cancelled
+
+  detachEvmHandlers();
+  state.evm.provider = chosen;
+
+  const idx = Math.max(0, providers.indexOf(chosen));
+  const desc = describeEvmProvider(chosen, idx);
+  state.evm.walletLabel = desc.label;
+
+  const accs = await chosen.request({ method:"eth_requestAccounts" });
+  const eth = accs?.[0];
+  if (!eth) throw new Error("No EVM account returned");
+
+  state.evm.eth = eth;
+  state.evm.bech32 = await ethToBech(eth);
+  state.evm.connected = true;
+
+  attachEvmHandlers();
+  return true;
+}
+
+/* ---------- balances ---------- */
+async function getBalanceGenesis(addr){
+  try{
+    const j=await rest(`/cosmos/bank/v1beta1/balances/${addr}/by_denom`, { denom: CFG.minDenom });
+    if (j?.balance?.amount) return j.balance.amount;
+  }catch{}
+  const all=await rest(`/cosmos/bank/v1beta1/balances/${addr}`, { "pagination.limit":"200" });
+  const f=(all.balances||[]).find(b=>b.denom===CFG.minDenom);
+  return f ? f.amount : "0";
+}
+async function getOsmoVoucherBalance(addrOsmo){
+  if (!addrOsmo) return "0";
+  try{
+    const j=await restOsmo(`/cosmos/bank/v1beta1/balances/${addrOsmo}/by_denom`, { denom: OSMO.el1IbcDenom });
+    if (j?.balance?.amount) return j.balance.amount;
+  }catch{}
+  try{
+    const all=await restOsmo(`/cosmos/bank/v1beta1/balances/${addrOsmo}`, { "pagination.limit":"200" });
+    const f=(all.balances||[]).find(b=>b.denom===OSMO.el1IbcDenom);
+    return f ? f.amount : "0";
+  }catch{}
+  return "0";
+}
+
+/* ---------- Keplr / IBC ---------- */
+async function getAccInfoCosmos(addr){
+  const j=await rest(`/cosmos/auth/v1beta1/accounts/${addr}`);
+  const base=j?.account ?? {};
+  return {
+    accountNumber:Number(base?.base_account?.account_number ?? base?.account_number ?? 0),
+    sequence:Number(base?.base_account?.sequence ?? base?.sequence ?? 0)
+  };
+}
+function encodeTxRawLocal(txRaw){
+  const encUvarint = (n)=>{ const out=[]; while (n > 127){ out.push((n & 0x7f) | 0x80); n >>>= 7; } out.push(n); return new Uint8Array(out); };
+  const toBytes = (x)=>{
+    if (x instanceof Uint8Array) return x;
+    if (Array.isArray(x)) return Uint8Array.from(x);
+    if (typeof x === "string"){ const b=atob(x); const u=new Uint8Array(b.length); for(let i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return u; }
+    return new Uint8Array();
+  };
+  const concat=(arrs)=>{ let len=0; for (const a of arrs) len+=a.length; const out=new Uint8Array(len); let o=0; for(const a of arrs){ out.set(a,o); o+=a.length; } return out; };
+
+  const body = toBytes(txRaw.bodyBytes ?? txRaw.body_bytes ?? txRaw.body ?? []);
+  const auth = toBytes(txRaw.authInfoBytes ?? txRaw.auth_info_bytes ?? txRaw.authInfo ?? []);
+  const sigs = Array.isArray(txRaw.signatures) ? txRaw.signatures.map(toBytes) : [];
+
+  const parts = [ new Uint8Array([0x0a]), encUvarint(body.length), body, new Uint8Array([0x12]), encUvarint(auth.length), auth ];
+  for (const s of sigs){ parts.push(new Uint8Array([0x1a]), encUvarint(s.length), s); }
+  return concat(parts);
+}
+
+async function kpIBC_GtoO(amountL1, receiverOsmo, memo){
+  if (!state.kp.connected) throw new Error("Connect Keplr first");
+  const me = state.kp.address;
+
+  const base = toBaseUnitsBI(amountL1).toString();
+  const timeoutNs = (BigInt(Math.floor(Date.now()/1000 + IBC.timeoutSec)) * 1_000_000_000n).toString();
+
+  const msgs = [{
+    typeUrl:"/ibc.applications.transfer.v1.MsgTransfer",
+    value:{
+      sourcePort: IBC.port,
+      sourceChannel: IBC.toOsmosis,
+      token:{ denom: CFG.minDenom, amount: base },
+      sender: me, receiver: receiverOsmo,
+      timeoutHeight:{ revisionNumber:"0", revisionHeight:"0" },
+      timeoutTimestamp: timeoutNs,
+      memo: memo || ""
+    }
+  }];
+
+  const info = await getAccInfoCosmos(me);
+  const fee = { amount: [{ denom: CFG.minDenom, amount: (BigInt(CFG.gasLimit) * BigInt(CFG.gasPrice)).toString() }], gas: String(CFG.gasLimit) };
+
+  const txRaw = await state.kp.client.sign(me, msgs, fee, "", { accountNumber: info.accountNumber, sequence: info.sequence, chainId: CFG.chainIdCosmos });
+  const txBytes = encodeTxRawLocal(txRaw);
+  return await state.kp.client.broadcastTx(txBytes);
+}
+
+async function ensureKeplrOsmosis(){
+  if (!window.keplr) throw new Error("Keplr not detected");
+  try{
+    await window.keplr.experimentalSuggestChain({
+      chainId: OSMO.chainId, chainName: "Osmosis",
+      rpc: OSMO.rpc, rest: OSMO.lcd, bip44: { coinType: 118 },
+      bech32Config:{
+        bech32PrefixAccAddr: OSMO.bech32, bech32PrefixAccPub: OSMO.bech32+"pub",
+        bech32PrefixValAddr: OSMO.bech32+"valoper", bech32PrefixValPub: OSMO.bech32+"valoperpub",
+        bech32PrefixConsAddr: OSMO.bech32+"valcons", bech32PrefixConsPub: OSMO.bech32+"valconspub"
+      },
+      stakeCurrency:{ coinDenom:"OSMO", coinMinimalDenom: OSMO.feeDenom, coinDecimals: 6 },
+      currencies:[{ coinDenom:"OSMO", coinMinimalDenom: OSMO.feeDenom, coinDecimals: 6 }],
+      feeCurrencies:[{ coinDenom:"OSMO", coinMinimalDenom: OSMO.feeDenom, coinDecimals: 6 }]
+    });
+  }catch(_){}
+
+  await window.keplr.enable(OSMO.chainId);
+  const signer = await window.getOfflineSignerAuto(OSMO.chainId);
+  const accs = await signer.getAccounts();
+  const osmoAddr = accs[0]?.address;
+
+  const gasPrice = window.COSM.GasPrice.fromString(`${OSMO.feeGasPrice}${OSMO.feeDenom}`);
+  const client = await window.COSM.SigningStargateClient.connectWithSigner(OSMO.rpc, signer, { gasPrice });
+
+  state.kp.osmoClient = client;
+  state.kp.osmoAddr = osmoAddr;
+  return { client, osmoAddr };
+}
+
+async function kpIBC_OtoG(amountL1, receiverGenesis){
+  const { client, osmoAddr } = await ensureKeplrOsmosis();
+  if (!osmoAddr) throw new Error("No Osmosis address in Keplr");
+
+  const base = toBaseUnitsBI(amountL1).toString();
+  const timeoutNs = (BigInt(Math.floor(Date.now()/1000 + IBC.timeoutSec)) * 1_000_000_000n).toString();
+
+  const msgs=[{
+    typeUrl:"/ibc.applications.transfer.v1.MsgTransfer",
+    value:{
+      sourcePort: IBC.port,
+      sourceChannel: IBC.osmosisToGenesis,
+      token: { denom: OSMO.el1IbcDenom, amount: base },
+      sender: osmoAddr, receiver: receiverGenesis,
+      timeoutHeight:{ revisionNumber:"0", revisionHeight:"0" },
+      timeoutTimestamp: timeoutNs, memo:""
+    }
+  }];
+
+  const res = await client.signAndBroadcast(osmoAddr, msgs, "auto");
+  const code = res?.code ?? res?.tx_response?.code ?? 0;
+  if (code) throw new Error(res?.raw_log || res?.tx_response?.raw_log || `code ${code}`);
+  return res;
+}
+
+/* ---------- UI ---------- */
+function updateConnectButtons(){
+  const bMM=$("btnMM"), bK=$("btnKeplr");
+  if (bMM) bMM.textContent = state.evm.connected ? "Logout" : "Connect";
+  if (bK)  bK.textContent  = state.kp.connected ? "Logout Keplr" : "Connect Keplr";
+}
+
+async function refreshBalances(){
+  // EVM wallet balances
+  if (!state.evm.connected || !state.evm.bech32){
+    $("ibcEvmGenesisBal").textContent = "—";
+    $("ibcEvmOsmoBal").textContent   = "—";
+  } else {
+    let evmGenesis="0";
+    try{ evmGenesis = await getBalanceGenesis(state.evm.bech32); }catch{}
+    $("ibcEvmGenesisBal").textContent = fmtL1_fromIntEl1(evmGenesis,6);
+
+    let evmOsmoVoucher="0";
+    try{
+      const evmOsmo = bech32Recode(state.evm.bech32, OSMO.bech32);
+      evmOsmoVoucher = await getOsmoVoucherBalance(evmOsmo);
+    }catch{}
+    $("ibcEvmOsmoBal").textContent = fmtL1_fromIntEl1(evmOsmoVoucher,6);
+  }
+
+  // Keplr balances
+  if (!state.kp.connected || !state.kp.address){
+    $("ibcKpGenesisBal").textContent = "—";
+    $("ibcKpOsmoBal").textContent = "—";
+    $("ibcKpTotalBal").textContent = "—";
+    $("ibcOsmoL1Bal").textContent = "—";
+  } else {
+    let kpGenesis="0";
+    try{ kpGenesis = await getBalanceGenesis(state.kp.address); }catch{}
+
+    let kpOsmoVoucher="0";
+    let osmoAddr = state.kp.osmoAddr;
+    if (!osmoAddr){
+      try{ osmoAddr = bech32Recode(state.kp.address, OSMO.bech32); state.kp.osmoAddr = osmoAddr; }catch{}
+    }
+    if (osmoAddr){
+      try{ kpOsmoVoucher = await getOsmoVoucherBalance(osmoAddr); }catch{}
+    }
+
+    $("ibcKpGenesisBal").textContent = fmtL1_fromIntEl1(kpGenesis,6);
+    $("ibcKpOsmoBal").textContent = fmtL1_fromIntEl1(kpOsmoVoucher,6);
+    $("ibcOsmoL1Bal").textContent = fmtL1_fromIntEl1(kpOsmoVoucher,6);
+
+    try{
+      const total = (BigInt(kpGenesis||"0") + BigInt(kpOsmoVoucher||"0")).toString();
+      $("ibcKpTotalBal").textContent = fmtL1_fromIntEl1(total,6);
+    }catch{
+      $("ibcKpTotalBal").textContent = "—";
+    }
+
+    // Autofill recipient to Osmosis
+    if (osmoAddr){
+      const el=$("ibcGtoO_to");
+      if (el && !el.value) el.value = osmoAddr;
+    }
+  }
+
+  // Withdraw autofill
+  const toInput = $("ibcOtoG_to");
+  const ck = $("ibcOtoG_useEVM");
+  if (toInput){
+    if (ck?.checked){
+      if (state.evm.connected && state.evm.bech32) toInput.value = state.evm.bech32;
+    } else {
+      if (!toInput.value && state.kp.connected && state.kp.address) toInput.value = state.kp.address;
+      if (!toInput.value && state.evm.connected && state.evm.bech32) toInput.value = state.evm.bech32;
+    }
+  }
+}
+
+/* ---------- Boot & Events ---------- */
+function onReady(fn){ if (document.readyState==='loading') document.addEventListener('DOMContentLoaded', fn); else fn(); }
+
+onReady(async ()=>{
+  // mark iframe embedded for modal placement (same as your staking page)
+  try{
+    if (window !== window.parent){
+      document.documentElement.classList.add("gl1-embedded");
+      document.body.classList.add("gl1-embedded");
+    }
+  }catch{}
+
+  initEip6963Discovery();
+  updateConnectButtons();
+
+  // EVM connect/logout (single button + chooser modal)
+  $("btnMM")?.addEventListener("click", async ()=>{
+    try{
+      if (state.evm.connected){
+        const label = state.evm.walletLabel || "EVM wallet";
+        detachEvmHandlers();
+        state.evm = { provider:null, connected:false, eth:"", bech32:"", walletLabel:"", _handlers:null };
+        updateConnectButtons();
+        await refreshBalances();
+        setGlobal(`${label} disconnected`,"muted");
+        return;
+      }
+
+      const ok = await connectEvm();
+      if (!ok) return; // cancelled
+
+      updateConnectButtons();
+      await refreshBalances();
+      setGlobal(`${state.evm.walletLabel || "EVM wallet"} connected`,"status ok");
+    }catch(e){
+      setGlobal(e?.message||String(e),"status err");
+      alert(e?.message||e);
+    }
+  });
+
+  // Keplr connect/logout (Genesis; Osmosis enabled on demand)
+  $("btnKeplr")?.addEventListener("click", async ()=>{
+    try{
+      if (state.kp.connected){
+        state.kp = { client:null, connected:false, address:"", osmoClient:null, osmoAddr:"" };
+        updateConnectButtons();
+        await refreshBalances();
+        setGlobal("Keplr disconnected","muted");
+        return;
+      }
+
+      if (!window.keplr) return alert("Keplr not detected");
+      try{
+        await window.keplr.experimentalSuggestChain({
+          chainId: CFG.chainIdCosmos, chainName: CFG.chainIdCosmos,
+          rpc: CFG.rpc, rest: CFG.lcd, bip44: { coinType: CFG.coinType },
+          bech32Config:{
+            bech32PrefixAccAddr: CFG.bech32, bech32PrefixAccPub: CFG.bech32+"pub",
+            bech32PrefixValAddr: CFG.bech32+"valoper", bech32PrefixValPub: CFG.bech32+"valoperpub",
+            bech32PrefixConsAddr: CFG.bech32+"valcons", bech32PrefixConsPub: CFG.bech32+"valconspub"
+          },
+          stakeCurrency:{ coinDenom: CFG.dispDenom, coinMinimalDenom: CFG.minDenom, coinDecimals: CFG.exp },
+          currencies:[{ coinDenom: CFG.dispDenom, coinMinimalDenom: CFG.minDenom, coinDecimals: CFG.exp }],
+          feeCurrencies:[{ coinDenom: CFG.dispDenom, coinMinimalDenom: CFG.minDenom, coinDecimals: CFG.exp }]
+        });
+      }catch(_){}
+
+      await window.keplr.enable(CFG.chainIdCosmos);
+      const signer = await window.getOfflineSignerAuto(CFG.chainIdCosmos);
+      const accs = await signer.getAccounts();
+      const me = accs[0]?.address;
+      if (!me) throw new Error("No Keplr account");
+
+      const gasPrice = window.COSM.GasPrice.fromString(`${CFG.gasPrice}${CFG.minDenom}`);
+      const client = await window.COSM.SigningStargateClient.connectWithSigner(CFG.rpc, signer, { gasPrice });
+
+      state.kp.client = client;
+      state.kp.address = me;
+      state.kp.connected = true;
+      try{ state.kp.osmoAddr = bech32Recode(me, OSMO.bech32); }catch{}
+
+      updateConnectButtons();
+      await refreshBalances();
+      setGlobal("Keplr connected","status ok");
+    }catch(e){
+      setGlobal(e?.message||String(e),"status err");
+      alert(e?.message||e);
+    }
+  });
+
+  // Checkbox: withdraw to EVM bech32
+  $("ibcOtoG_useEVM")?.addEventListener("change", ()=>{
+    const ck = $("ibcOtoG_useEVM");
+    const input=$("ibcOtoG_to");
+    if (!ck || !input) return;
+
+    if (ck.checked){
+      if (state.evm.connected && state.evm.bech32){
+        input.value = state.evm.bech32;
+      } else {
+        ck.checked = false;
+        setGlobal("Connect an EVM wallet first to use this option","status warn");
+      }
+    } else {
+      if (state.kp.connected && state.kp.address) input.value = state.kp.address;
+    }
+  });
+
+  // Genesis -> Osmosis (Keplr)
+  $("btnIbcGtoO_Keplr")?.addEventListener("click", async ()=>{
+    const note=$("ibcGtoO_status");
+    try{
+      if (!state.kp.connected) throw new Error("Connect Keplr first");
+      const amt=$("ibcGtoO_amt")?.value.trim() || "";
+      const to=$("ibcGtoO_to")?.value.trim() || "";
+      const memo=$("ibcGtoO_memo")?.value.trim() || "";
+      if (!amt || !to) throw new Error("Amount and Osmosis address required");
+
+      const res = await kpIBC_GtoO(amt, to, memo);
+      const code = res?.code ?? res?.tx_response?.code ?? 0;
+      if (code) throw new Error(res?.raw_log || res?.tx_response?.raw_log || `code ${code}`);
+
+      note.innerHTML = `<span class="status ok">IBC sent with Keplr (channel-1)</span>`;
+      await refreshBalances();
+    }catch(e){
+      note.innerHTML = `<span class="status err">${e?.message||e}</span>`;
+    }
+  });
+
+  // Osmosis -> Genesis (Keplr on Osmosis)
+  $("btnIbcOtoG_Keplr")?.addEventListener("click", async ()=>{
+    const note=$("ibcOtoG_status");
+    try{
+      const amt=$("ibcOtoG_amt")?.value.trim() || "";
+      const to=$("ibcOtoG_to")?.value.trim() || "";
+      if (!amt || !to) throw new Error("Amount and GenesisL1 address required");
+
+      const res = await kpIBC_OtoG(amt, to);
+      note.innerHTML = `<span class="status ok">Withdraw broadcasted on Osmosis (channel-253)</span>`;
+      await refreshBalances();
+    }catch(e){
+      note.innerHTML = `<span class="status err">${e?.message||e}</span>`;
+    }
+  });
+
+  // Initial paint
+  try{
+    await refreshBalances();
+    setGlobal("Ready","muted");
+  }catch(e){
+    setGlobal(e?.message||"Ready (partial)","status warn");
+  }
+});
+</script>
+
+<!-- Iframe auto-resize (kept) -->
+<script>
+(function(){
+  if (window === window.parent) return;
+
+  function sendHeight(){
+    var doc  = document;
+    var body = doc.body;
+    var html = doc.documentElement;
+    if (!body || !html) return;
+
+    var height = Math.max(
+      body.scrollHeight,
+      body.offsetHeight,
+      html.clientHeight,
+      html.scrollHeight,
+      html.offsetHeight
+    );
+
+    window.parent.postMessage({ type:'gl1-iframe-resize', height:height }, '*');
+  }
+
+  window.addEventListener('load', function(){
+    sendHeight();
+    setTimeout(sendHeight, 300);
+    setTimeout(sendHeight, 1000);
+  });
+
+  window.addEventListener('resize', sendHeight);
+
+  if ('ResizeObserver' in window){
+    var ro = new ResizeObserver(sendHeight);
+    ro.observe(document.body);
+  }
+})();
+</script>
+
+</body>
+</html>
