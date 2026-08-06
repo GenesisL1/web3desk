@@ -21,7 +21,7 @@ The evidence is deliberately narrower than the marketing shorthand it replaces:
 ## Reproduce
 
 ```bash
-python -m pip install requests eth-abi eth-utils msgpack
+python -m pip install requests eth-abi eth-utils 'eth-hash[pycryptodome]' msgpack
 python molnft-evidence/scripts/capture_molnft_snapshot.py
 ```
 
@@ -33,3 +33,5 @@ sha256sum -c SHA256SUMS.txt
 ```
 
 The report states exactly what was observed and exactly what was not tested. The pinned snapshot is retained as an immutable citation target rather than silently replaced by later state.
+
+This pull request exists only to execute the reviewed capture and publish its downloadable evidence artifact.
