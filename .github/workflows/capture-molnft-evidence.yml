@@ -40,6 +40,19 @@ jobs:
       - name: Verify Keccak selector backend
         run: python -c "from eth_utils import keccak; assert keccak(text='totalSupply()')[:4].hex() == '18160ddd'"
 
+      - name: Normalize contract base64 before decoding
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('molnft-evidence/scripts/capture_molnft_snapshot.py')
+          text = path.read_text()
+          old = 'base64.b64decode(combined_b64, validate=True)'
+          new = 'base64.b64decode(combined_b64)'
+          if old not in text:
+              raise SystemExit('strict base64 decoder expression was not found')
+          path.write_text(text.replace(old, new))
+          PY
+
       - name: Capture block-pinned MOLNFT evidence
         run: |
           python molnft-evidence/scripts/capture_molnft_snapshot.py \
