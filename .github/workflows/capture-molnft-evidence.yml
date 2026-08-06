@@ -65,7 +65,10 @@ jobs:
           path: |
             ${{ steps.snapshot.outputs.path }}
             molnft-evidence/latest.json
+            molnft-evidence/README.md
             molnft-evidence/METHODOLOGY.md
+            molnft-evidence/scripts/capture_molnft_snapshot.py
+            .github/workflows/capture-molnft-evidence.yml
           if-no-files-found: error
           retention-days: 90
 
