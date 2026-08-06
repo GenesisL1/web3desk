@@ -2,8 +2,10 @@ name: Capture GenesisL1 evidence snapshots
 
 on:
   workflow_dispatch:
+  issues:
+    types: [opened]
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "17 03 * * 1"
   push:
     branches: [main, decentralization-evidence]
     paths:
@@ -22,6 +24,7 @@ concurrency:
 
 jobs:
   capture:
+    if: github.event_name != 'issues' || github.event.issue.title == '[evidence] capture MOLNFT block 13412747'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -43,12 +46,14 @@ jobs:
         run: cd decentralization/latest && sha256sum -c SHA256SUMS.txt
 
       - name: Capture block-pinned MOLNFT evidence
+        if: github.event_name != 'schedule'
         run: |
           python molnft-evidence/scripts/capture_molnft_snapshot.py \
             --block 13412747 \
             --expected-block-hash 19F42CD995E384E09D5CD4FB2751668E613D762DD1F22301D065EC84950F0F9A
 
       - name: Resolve MOLNFT snapshot directory
+        if: github.event_name != 'schedule'
         id: molnft
         run: |
           SNAPSHOT=$(python - <<'PY'
@@ -61,6 +66,7 @@ jobs:
           echo "path=${SNAPSHOT}" >> "$GITHUB_OUTPUT"
 
       - name: Verify MOLNFT evidence checksums
+        if: github.event_name != 'schedule'
         run: cd "${{ steps.molnft.outputs.path }}" && sha256sum -c SHA256SUMS.txt
 
       - name: Upload consensus evidence artifact
@@ -72,6 +78,7 @@ jobs:
           retention-days: 90
 
       - name: Upload MOLNFT evidence artifact
+        if: github.event_name != 'schedule'
         uses: actions/upload-artifact@v4
         with:
           name: genesisl1-molnft-evidence-block-13412747
@@ -87,7 +94,9 @@ jobs:
           git config user.name "GenesisL1 Evidence Bot"
           git config user.email "actions@users.noreply.github.com"
           git add decentralization/latest decentralization/snapshots
-          git add molnft-evidence/latest.json molnft-evidence/snapshots
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            git add molnft-evidence/latest.json molnft-evidence/snapshots
+          fi
           if git diff --cached --quiet; then
             echo "No evidence changes to commit."
           else
