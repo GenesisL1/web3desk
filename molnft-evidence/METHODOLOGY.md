@@ -51,7 +51,7 @@ For each token, the capture:
 1. calls `getMetadata(tokenId)` at the pinned block and checks the on-chain `IDCODE`;
 2. calls `getCombinedData(tokenId)` at the same block;
 3. ABI-decodes the returned string;
-4. base64-decodes it;
+4. normalizes whitespace and padding in the returned base64 before decoding;
 5. gunzips it when the gzip magic bytes are present;
 6. writes the reconstructed `.bcif` bytes;
 7. parses the BinaryCIF MessagePack container;
