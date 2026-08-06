@@ -3,7 +3,7 @@ name: Capture GenesisL1 evidence snapshots
 on:
   workflow_dispatch:
   workflow_run:
-    workflows: ["pages-build-deployment"]
+    workflows: ["pages build and deployment"]
     types: [completed]
   schedule:
     - cron: "17 03 * * 1"
@@ -32,7 +32,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install MOLNFT evidence dependencies
-        run: python -m pip install --disable-pip-version-check requests eth-abi eth-utils msgpack
+        run: python -m pip install --disable-pip-version-check requests eth-abi eth-utils 'eth-hash[pycryptodome]' msgpack
 
       - name: Capture consensus decentralization evidence
         run: python decentralization/scripts/capture_validator_snapshot.py
