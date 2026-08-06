@@ -2,6 +2,14 @@
 
 GenesisL1 Web3Desk is a fully static, client-side dashboard that lets any browser interact with the GenesisL1 / L1coin network without a custom backend. Each HTML page talks directly to public RPC/LCD endpoints (plus optional Osmosis market data) and works with both Cosmos (Keplr) and EVM wallets where applicable.
 
+## Reproducible decentralization evidence
+
+The repository also publishes a height-pinned GenesisL1 consensus snapshot with raw CometBFT and Cosmos JSON, ranked validator data, one-third and two-thirds coefficients, concentration metrics, SHA-256 checksums, a standard-library capture script and an automated GitHub Actions workflow.
+
+- [Latest verified snapshot](decentralization/latest/README.md)
+- [Methodology and metric definitions](decentralization/METHODOLOGY.md)
+- [Capture and verification instructions](decentralization/README.md)
+
 ## What the dApp does today
 
 - **GenesisL1 chain stats** (`index.html`): Live circulating supply, staking totals, community pool balance, Osmosis-driven spot price and market cap estimates, plus a responsive supply composition chart. Everything refreshes on a short timer and resizes fluidly for embeds.
@@ -30,3 +38,4 @@ If you prefer cached supply/community-pool data, the optional `gl1_api.py` helpe
 
 ```bash
 python gl1_api.py  # listens on 0.0.0.0:8787
+```

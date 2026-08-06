@@ -1,0 +1,71 @@
+{
+  "metadata": {
+    "app_hash": "914CDE29F385E5D3B880C6DC540374956D3B9FCD4D2ED1BC7A8DC151BDEF0AC9",
+    "block_hash": "DF7459B21D622689BFBE22313DBD38E372738A225E72A1249BACAB2C9E97CCF0",
+    "block_time_utc": "2026-08-06T12:27:36.794004705Z",
+    "captured_at_utc": "2026-08-06T12:28:29Z",
+    "chain_id": "genesis_29-2",
+    "cometbft_version": "0.38.13",
+    "height_verification": {
+      "rest_params_height_header": null,
+      "rest_validator_page_headers": [
+        null
+      ],
+      "rpc_block_height": 13412741
+    },
+    "lag_blocks_from_rpc_tip": 2,
+    "matching": {
+      "consensus_validator_count": 26,
+      "matched_by_consensus_pubkey": 26,
+      "staking_bonded_validator_count": 26,
+      "unmatched_consensus_validators": 0,
+      "unused_staking_records": 0
+    },
+    "methodology_version": "2.0.0",
+    "network": "GenesisL1",
+    "pinned_height": 13412741,
+    "provider_name": "ANODE.TEAM",
+    "raw_rest_validator_pages": [
+      {
+        "count": 26,
+        "page": 1,
+        "pagination_total": "26",
+        "response_height_header": null,
+        "url": "https://genesisl1.api.m.anode.team/cosmos/staking/v1beta1/validators?status=BOND_STATUS_BONDED&pagination.limit=200&pagination.count_total=true"
+      }
+    ],
+    "raw_rpc_validator_pages": [
+      {
+        "count": 26,
+        "page": 1,
+        "total": 26,
+        "url": "https://genesisl1.rpc.m.anode.team/validators?height=13412741&page=1&per_page=100"
+      }
+    ],
+    "rest_endpoint": "https://genesisl1.api.m.anode.team",
+    "rpc_endpoint": "https://genesisl1.rpc.m.anode.team",
+    "rpc_latest_height_at_start": 13412743,
+    "rpc_latest_time_at_start": "2026-08-06T12:28:02.560253852Z",
+    "schema": "org.genesisl1.decentralization_snapshot.v2"
+  },
+  "metrics": {
+    "active_consensus_validators": 26,
+    "active_set_utilization_percent": "52",
+    "basis": "CometBFT validator-set voting_power at the pinned height",
+    "coefficient_at_or_above_one_third": 5,
+    "coefficient_at_or_above_two_thirds": 10,
+    "coefficient_strictly_above_one_third": 5,
+    "coefficient_strictly_above_two_thirds": 10,
+    "effective_validator_count": "17.627131227184234202040198168134472497530081599227430030431606936582144476863176",
+    "gini_coefficient": "0.39192071507722904631731145940498633805667718419695738733719963347542042723139176",
+    "hhi_10000": "567.30728733545625600998782401859009082428178871581387972384670560051363233992591",
+    "hhi_fraction": "0.056730728733545625600998782401859009082428178871581387972384670560051363233992591",
+    "largest_validator_share_percent": "9.35831582",
+    "normalized_entropy": "0.9213457737070141",
+    "protocol_max_validators": 50,
+    "top_10_share_percent": "67.24438276",
+    "top_3_share_percent": "25.27219345",
+    "top_5_share_percent": "38.74159708",
+    "total_consensus_voting_power": "24473036"
+  }
+}

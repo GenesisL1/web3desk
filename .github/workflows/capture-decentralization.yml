@@ -1,0 +1,59 @@
+name: Capture GenesisL1 decentralization snapshot
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 03 * * 1"
+  push:
+    branches: [main, decentralization-evidence]
+    paths:
+      - "decentralization/scripts/capture_validator_snapshot.py"
+      - "decentralization/METHODOLOGY.md"
+      - ".github/workflows/capture-decentralization.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: genesisl1-decentralization-capture-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Capture pinned-height evidence
+        run: python decentralization/scripts/capture_validator_snapshot.py
+
+      - name: Verify checksums
+        run: cd decentralization/latest && sha256sum -c SHA256SUMS.txt
+
+      - name: Upload evidence artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: genesisl1-decentralization-latest
+          path: decentralization/latest
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Commit snapshot
+        run: |
+          git config user.name "GenesisL1 Evidence Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add decentralization/latest decentralization/snapshots
+          if git diff --cached --quiet; then
+            echo "No snapshot changes to commit."
+          else
+            HEIGHT=$(python -c 'import json; print(json.load(open("decentralization/latest/snapshot.json"))["metadata"]["pinned_height"])')
+            git commit -m "data: publish decentralization snapshot at height ${HEIGHT}"
+            git push
+          fi
