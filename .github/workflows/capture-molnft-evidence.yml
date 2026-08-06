@@ -5,7 +5,7 @@ on:
   schedule:
     - cron: "*/5 * * * *"
   push:
-    branches: [main]
+    branches: [main, molnft-capture-run]
     paths:
       - "molnft-evidence/scripts/capture_molnft_snapshot.py"
       - "molnft-evidence/METHODOLOGY.md"
