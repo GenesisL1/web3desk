@@ -3,7 +3,7 @@ name: Capture pinned MOLNFT evidence
 on:
   workflow_dispatch:
   push:
-    branches: [molnft-evidence-20260806]
+    branches: [main, molnft-evidence-20260806]
     paths:
       - "molnft-evidence/scripts/capture_molnft_snapshot.py"
       - "molnft-evidence/METHODOLOGY.md"
