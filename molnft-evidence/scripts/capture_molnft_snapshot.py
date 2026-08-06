@@ -408,7 +408,7 @@ def capture(args: argparse.Namespace) -> tuple[pathlib.Path, dict[str, Any]]:
         combined_result = eth_call(session, rpc_url, v2_address, call_data("getCombinedData(uint256)", ["uint256"], [token_id]), block_hex, request_id[0], args.timeout, args.retries)
         save_rpc(raw_dir, f"rpc-combined-{idcode}-token-{token_id}", combined_result)
         combined_b64 = decode_string(str(combined_result.payload["result"]))
-        compressed = base64.b64decode(combined_b64, validate=True)
+        compressed = base64.b64decode(combined_b64)
         binary_cif = gzip.decompress(compressed) if compressed[:2] == b"\x1f\x8b" else compressed
         inspection = inspect_binary_cif(binary_cif)
         if not inspection["has_cartesian_xyz"] or inspection["atom_site_row_count"] <= 0:

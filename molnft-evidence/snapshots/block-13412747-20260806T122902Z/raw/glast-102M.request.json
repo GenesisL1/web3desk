@@ -1,0 +1,4 @@
+{
+  "method": "GET",
+  "url": "https://api.molnft.org/api/nft_by_idcode?code=102M"
+}

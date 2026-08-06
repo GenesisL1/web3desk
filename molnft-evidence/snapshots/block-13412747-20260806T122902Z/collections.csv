@@ -1,0 +1,4 @@
+collection_key,name,contract,storage_generation,total_supply,parent_record_count,child_chunk_count,code_sha256
+pdb_v2,MOLNFT PDB v2 — full on-chain BinaryCIF payloads,0xd58B01f6C18086e5202cdC5D7Ad3E41790360102,v2_full_payload,265786,229271,36515,04c29a062d00d31991be9932c3c74ef70b4ada396cfa4a7ff630a81edafccc92
+pdb_v1,MOLNFT PDB v1 — legacy ERC-721 collection,0xDE3723766Bc32dcACD03C17BaA400A7B36837Eba,v1_legacy_ipfs_asset,191600,,,0ebcbd1db1a6d6a6fbc4b48f3c246ea9061c1649366f7d7068885180661b7d2b
+af_v1,MOLNFT AlphaFold/Swiss-Prot v1 — legacy ERC-721 collection,0xBf7491af3407816DFa88a5EA4c82e8A2B1D721eD,v1_legacy_ipfs_asset,542319,,,0ebcbd1db1a6d6a6fbc4b48f3c246ea9061c1649366f7d7068885180661b7d2b

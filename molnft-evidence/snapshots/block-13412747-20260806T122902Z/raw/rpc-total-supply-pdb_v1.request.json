@@ -1,0 +1,13 @@
+{
+  "id": 14,
+  "jsonrpc": "2.0",
+  "method": "eth_call",
+  "params": [
+    {
+      "data": "0x18160ddd",
+      "to": "0xDE3723766Bc32dcACD03C17BaA400A7B36837Eba"
+    },
+    "0xcca98b"
+  ],
+  "url": "https://rpc.genesisl1.org"
+}
