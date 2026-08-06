@@ -2,7 +2,7 @@ name: Capture GenesisL1 evidence snapshots
 
 on:
   workflow_dispatch:
-  issues:
+  pull_request:
     types: [opened]
   schedule:
     - cron: "17 03 * * 1"
@@ -24,12 +24,14 @@ concurrency:
 
 jobs:
   capture:
-    if: github.event_name != 'issues' || github.event.issue.title == '[evidence] capture MOLNFT block 13412747'
+    if: github.event_name != 'pull_request' || github.event.pull_request.title == '[evidence] capture MOLNFT block 13412747'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
-      - name: Check out repository
+      - name: Check out default branch
         uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -101,5 +103,5 @@ jobs:
             echo "No evidence changes to commit."
           else
             git commit -m "data: publish reproducible GenesisL1 evidence snapshots"
-            git push
+            git push origin HEAD:main
           fi
