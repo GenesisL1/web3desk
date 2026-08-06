@@ -81,3 +81,5 @@ python molnft-evidence/scripts/capture_molnft_snapshot.py \
 cd molnft-evidence/snapshots/block-13412747-*
 sha256sum -c SHA256SUMS.txt
 ```
+
+The capture is intentionally immutable for Article 02: any later block belongs in a new snapshot rather than silently replacing the evidence cited by the article.
