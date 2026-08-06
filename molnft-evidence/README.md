@@ -32,4 +32,4 @@ cd molnft-evidence/snapshots/block-13412747-*
 sha256sum -c SHA256SUMS.txt
 ```
 
-The report states exactly what was observed and exactly what was not tested.
+The report states exactly what was observed and exactly what was not tested. The pinned snapshot is retained as an immutable citation target rather than silently replaced by later state.
