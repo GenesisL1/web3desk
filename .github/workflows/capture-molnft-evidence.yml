@@ -2,10 +2,13 @@ name: Capture pinned MOLNFT evidence
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "*/5 * * * *"
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "molnft-evidence/**"
+      - ".github/workflows/capture-molnft-evidence.yml"
   push:
-    branches: [main, molnft-capture-run]
+    branches: [main]
     paths:
       - "molnft-evidence/scripts/capture_molnft_snapshot.py"
       - "molnft-evidence/METHODOLOGY.md"
@@ -73,6 +76,7 @@ jobs:
           retention-days: 90
 
       - name: Commit immutable snapshot
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         run: |
           git config user.name "GenesisL1 Evidence Bot"
           git config user.email "actions@users.noreply.github.com"
