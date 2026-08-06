@@ -3,7 +3,7 @@ name: Capture pinned MOLNFT evidence
 on:
   workflow_dispatch:
   push:
-    branches: [main, molnft-evidence-20260806]
+    branches: [main]
     paths:
       - "molnft-evidence/scripts/capture_molnft_snapshot.py"
       - "molnft-evidence/METHODOLOGY.md"
@@ -30,7 +30,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install evidence dependencies
-        run: python -m pip install --disable-pip-version-check requests eth-abi eth-utils msgpack
+        run: python -m pip install --disable-pip-version-check requests eth-abi eth-utils 'eth-hash[pycryptodome]' msgpack
 
       - name: Capture block-pinned MOLNFT evidence
         run: |
