@@ -82,4 +82,4 @@ cd molnft-evidence/snapshots/block-13412747-*
 sha256sum -c SHA256SUMS.txt
 ```
 
-The capture is intentionally immutable for Article 02: any later block belongs in a new snapshot rather than silently replacing the evidence cited by the article.
+The capture is intentionally immutable for Article 02: any later block belongs in a new snapshot rather than silently replacing the evidence cited by the article. The committed snapshot is therefore both a research artifact and a versioned citation target.
