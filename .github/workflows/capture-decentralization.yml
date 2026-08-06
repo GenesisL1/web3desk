@@ -5,7 +5,7 @@ on:
   schedule:
     - cron: "17 03 * * 1"
   push:
-    branches: [decentralization-evidence]
+    branches: [main, decentralization-evidence]
     paths:
       - "decentralization/scripts/capture_validator_snapshot.py"
       - "decentralization/METHODOLOGY.md"
@@ -15,7 +15,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: genesisl1-decentralization-capture
+  group: genesisl1-decentralization-capture-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
