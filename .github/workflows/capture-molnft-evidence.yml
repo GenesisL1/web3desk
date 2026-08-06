@@ -32,6 +32,9 @@ jobs:
       - name: Install evidence dependencies
         run: python -m pip install --disable-pip-version-check requests eth-abi eth-utils 'eth-hash[pycryptodome]' msgpack
 
+      - name: Verify Keccak selector backend
+        run: python -c "from eth_utils import keccak; assert keccak(text='totalSupply()')[:4].hex() == '18160ddd'"
+
       - name: Capture block-pinned MOLNFT evidence
         run: |
           python molnft-evidence/scripts/capture_molnft_snapshot.py \
