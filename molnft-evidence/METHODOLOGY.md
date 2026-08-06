@@ -73,7 +73,7 @@ Collection counters prove the values returned by the deployed contracts at the p
 ## Reproduction
 
 ```bash
-python -m pip install requests eth-abi eth-utils msgpack
+python -m pip install requests eth-abi eth-utils 'eth-hash[pycryptodome]' msgpack
 python molnft-evidence/scripts/capture_molnft_snapshot.py \
   --block 13412747 \
   --expected-block-hash 19F42CD995E384E09D5CD4FB2751668E613D762DD1F22301D065EC84950F0F9A
