@@ -2,13 +2,6 @@ name: Capture pinned MOLNFT evidence
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "*/5 * * * *"
-  pull_request:
-    types: [opened, synchronize, reopened]
-    paths:
-      - "molnft-evidence/**"
-      - ".github/workflows/capture-molnft-evidence.yml"
   push:
     branches: [main]
     paths:
@@ -30,6 +23,9 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -50,9 +46,10 @@ jobs:
           text = path.read_text()
           old = 'base64.b64decode(combined_b64, validate=True)'
           new = 'base64.b64decode(combined_b64)'
-          if old not in text:
-              raise SystemExit('strict base64 decoder expression was not found')
-          path.write_text(text.replace(old, new))
+          if old in text:
+              path.write_text(text.replace(old, new))
+          elif new not in text:
+              raise SystemExit('expected base64 decoder expression was not found')
           PY
 
       - name: Capture block-pinned MOLNFT evidence
@@ -76,6 +73,40 @@ jobs:
       - name: Verify SHA-256 manifest
         run: cd "${{ steps.snapshot.outputs.path }}" && sha256sum -c SHA256SUMS.txt
 
+      - name: Build a permanent downloadable archive
+        run: |
+          mkdir -p molnft-evidence/releases
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from zipfile import ZIP_DEFLATED, ZipFile
+
+          root = Path('.')
+          pointer = json.loads(Path('molnft-evidence/latest.json').read_text())
+          snapshot = Path('molnft-evidence/snapshots') / pointer['snapshot_directory']
+          output = Path('molnft-evidence/releases/GenesisL1_MOLNFT_Evidence_Block_13412747.zip')
+          if output.exists():
+              output.unlink()
+          sources = [
+              snapshot,
+              Path('molnft-evidence/latest.json'),
+              Path('molnft-evidence/README.md'),
+              Path('molnft-evidence/METHODOLOGY.md'),
+              Path('molnft-evidence/scripts/capture_molnft_snapshot.py'),
+              Path('.github/workflows/capture-molnft-evidence.yml'),
+          ]
+          with ZipFile(output, 'w', ZIP_DEFLATED, compresslevel=9) as archive:
+              for source in sources:
+                  if source.is_dir():
+                      for path in sorted(source.rglob('*')):
+                          if path.is_file():
+                              archive.write(path, path.as_posix())
+                  else:
+                      archive.write(source, source.as_posix())
+          PY
+          sha256sum molnft-evidence/releases/GenesisL1_MOLNFT_Evidence_Block_13412747.zip \
+            > molnft-evidence/releases/SHA256SUMS.txt
+
       - name: Upload evidence artifact
         uses: actions/upload-artifact@v4
         with:
@@ -86,19 +117,25 @@ jobs:
             molnft-evidence/README.md
             molnft-evidence/METHODOLOGY.md
             molnft-evidence/scripts/capture_molnft_snapshot.py
+            molnft-evidence/releases/GenesisL1_MOLNFT_Evidence_Block_13412747.zip
+            molnft-evidence/releases/SHA256SUMS.txt
             .github/workflows/capture-molnft-evidence.yml
           if-no-files-found: error
           retention-days: 90
 
-      - name: Commit immutable snapshot
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+      - name: Commit immutable snapshot and archive
         run: |
           git config user.name "GenesisL1 Evidence Bot"
           git config user.email "actions@users.noreply.github.com"
-          git add molnft-evidence/latest.json molnft-evidence/snapshots
+          git add \
+            molnft-evidence/latest.json \
+            molnft-evidence/snapshots \
+            molnft-evidence/releases \
+            molnft-evidence/scripts/capture_molnft_snapshot.py
           if git diff --cached --quiet; then
             echo "No evidence changes to commit."
           else
             git commit -m "data: publish MOLNFT evidence at block 13412747"
-            git push
+            git pull --rebase origin main
+            git push origin main
           fi
