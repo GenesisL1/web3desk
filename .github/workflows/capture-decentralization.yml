@@ -3,7 +3,7 @@ name: Capture GenesisL1 evidence snapshots
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 22 * * *"
+    - cron: "*/5 * * * *"
   push:
     branches: [main, decentralization-evidence]
     paths:
