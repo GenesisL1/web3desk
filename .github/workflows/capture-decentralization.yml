@@ -2,18 +2,11 @@ name: Capture GenesisL1 evidence snapshots
 
 on:
   workflow_dispatch:
-  pull_request:
-    types: [opened]
+  workflow_run:
+    workflows: ["pages-build-deployment"]
+    types: [completed]
   schedule:
     - cron: "17 03 * * 1"
-  push:
-    branches: [main, decentralization-evidence]
-    paths:
-      - "decentralization/scripts/capture_validator_snapshot.py"
-      - "decentralization/METHODOLOGY.md"
-      - "molnft-evidence/scripts/capture_molnft_snapshot.py"
-      - "molnft-evidence/METHODOLOGY.md"
-      - ".github/workflows/capture-decentralization.yml"
 
 permissions:
   contents: write
@@ -24,7 +17,7 @@ concurrency:
 
 jobs:
   capture:
-    if: github.event_name != 'pull_request' || github.event.pull_request.title == '[evidence] capture MOLNFT block 13412747'
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
