@@ -1,0 +1,48 @@
+name: Prune obsolete Insights migration branches
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/prune-insights-migration-branches.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: prune-insights-migration-branches
+  cancel-in-progress: false
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Delete obsolete migration branches
+        run: |
+          git ls-remote --heads origin \
+            | awk '{print $2}' \
+            | sed 's#refs/heads/##' \
+            | grep -E '^(decentralization-evidence|verify-molnft-keccak-backend|molnft-capture-run|molnft-evidence-artifact-run|run-corrected-molnft-evidence|publish-molnft-snapshot-summary)$' \
+            | while read -r branch; do
+                [ -n "$branch" ] && git push origin --delete "$branch"
+              done || true
+
+      - name: Remove one-use workflow and commit
+        run: |
+          rm -f .github/workflows/prune-insights-migration-branches.yml
+          git config user.name "GenesisL1 Repository Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No repository files changed."
+          else
+            git commit -m "chore: prune obsolete Insights migration branches"
+            git push
+          fi
