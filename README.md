@@ -1,41 +1,47 @@
-# GenesisL1 Web3Desk (Stateless HTML dApp)
+# GenesisL1 Web3Desk — Stateless HTML dApp
 
-GenesisL1 Web3Desk is a fully static, client-side dashboard that lets any browser interact with the GenesisL1 / L1coin network without a custom backend. Each HTML page talks directly to public RPC/LCD endpoints (plus optional Osmosis market data) and works with both Cosmos (Keplr) and EVM wallets where applicable.
+GenesisL1 Web3Desk is a fully static, client-side dashboard for interacting with the GenesisL1 / L1 coin network without a custom application backend. Each page communicates directly with public GenesisL1 RPC and REST endpoints, with optional external market-data sources, and supports Cosmos and EVM wallets where applicable.
 
-## Reproducible decentralization evidence
+## Included applications
 
-The repository also publishes a height-pinned GenesisL1 consensus snapshot with raw CometBFT and Cosmos JSON, ranked validator data, one-third and two-thirds coefficients, concentration metrics, SHA-256 checksums, a standard-library capture script and an automated GitHub Actions workflow.
+- **Network dashboard** (`index.html`) — live supply, staking, community-pool and market indicators with responsive charts.
+- **Staking and wallets** (`staking.html`) — EVM and Cosmos wallet discovery, address mapping, balances, delegation, redelegation, undelegation and reward claims.
+- **Governance** (`gov.html`) — proposal discovery, proposal details, voting and governance deposits through compatible wallets.
+- **IBC transfers** (`ibc.html`) — guided ICS-20 transfers between GenesisL1 and connected networks.
+- **Explorer** (`explorer.html`) — lightweight blocks, transactions, validators, address and NFT views using public network interfaces.
+- **Optional metrics helper** (`gl1_api.py`) — a small local service for cached network indicators when desired.
 
-- [Latest verified snapshot](decentralization/latest/README.md)
-- [Methodology and metric definitions](decentralization/METHODOLOGY.md)
-- [Capture and verification instructions](decentralization/README.md)
+## Architecture
 
-## What the dApp does today
+The browser-facing application is intentionally static. It can be hosted as ordinary files and does not require a project-controlled server for wallet signing or chain interaction. Users should verify transaction details in their wallet before signing and may replace the configured public endpoints with trusted alternatives.
 
-- **GenesisL1 chain stats** (`index.html`): Live circulating supply, staking totals, community pool balance, Osmosis-driven spot price and market cap estimates, plus a responsive supply composition chart. Everything refreshes on a short timer and resizes fluidly for embeds.
-- **Staking & wallets** (`staking.html`): Dual EVM + Cosmos wallet panel (MetaMask/Rabby + Keplr) with bech32/hex address mapping, balance checks, quick send from EVM to Keplr, and staking flows (delegate, redelegate, undelegate, claim rewards) using `evmosjs` + `ethers` over LCD/RPC—no server needed.
-- **Governance** (`gov.html`): Proposal list and detail views with on-page vote/deposit actions through Keplr, including per-option tallies and minimal signatures for verification. Uses the same stateless wallet discovery stack as staking.
-- **IBC transfers** (`ibc.html`): Guided ICS-20 transfers between GenesisL1 and Osmosis with channel defaults (`channel-1` / `channel-253`), Keplr signing, timeout helpers, and status toasts to keep users informed through broadcast/relay steps.
-- **Block explorer** (`explorer.html`): Lightweight, iframe-friendly explorer that pulls recent blocks, unified Cosmos+EVM transactions, validator snapshots, and address/tx lookups directly from RPC/LCD. Responsive cards and hash-shortening make it usable on mobile or embedded tabs.
-
-## Things still to build
-
-- Refactor `evmosjs` into a `genesisl1js` bundle that ships every required message type in a modern, CDN-friendly package.
-- Enable IBC flows through EVM wallets like MetaMask (not just Keplr), including signing and fee handling.
-- Allow governance deposits and proposals to be created from MetaMask/EVM wallets alongside existing Keplr support.
-
-## Running it locally
-
-Because the app is static, you only need a simple file server (or open the HTML files directly). For friendlier CORS behavior, serve the folder and open `index.html`:
+## Run locally
 
 ```bash
+git clone https://github.com/GenesisL1/web3desk.git
 cd web3desk
 python -m http.server 8080
-# then visit http://localhost:8080/index.html
 ```
 
-If you prefer cached supply/community-pool data, the optional `gl1_api.py` helper exposes `/api.json` with LCD-derived metrics:
+Open `http://localhost:8080/`.
+
+The optional metrics helper can be started separately:
 
 ```bash
-python gl1_api.py  # listens on 0.0.0.0:8787
+python gl1_api.py
 ```
+
+## Related repositories
+
+Long-form GenesisL1 publications, source graphics and reproducible evidence packages are maintained separately in [GenesisL1/insights](https://github.com/GenesisL1/insights).
+
+## Development priorities
+
+- consolidate the transaction stack into a GenesisL1-focused JavaScript package;
+- extend EVM-wallet support for IBC and governance operations;
+- preserve the static, independently hostable deployment model;
+- improve automated browser and transaction-path testing.
+
+## License
+
+See the license notices embedded in the source files and any repository-level licensing materials.

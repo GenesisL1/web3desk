@@ -1,7 +1,0 @@
-{
-  "id": 1,
-  "jsonrpc": "2.0",
-  "method": "eth_chainId",
-  "params": [],
-  "url": "https://rpc.genesisl1.org"
-}
